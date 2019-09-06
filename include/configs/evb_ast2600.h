@@ -18,7 +18,9 @@
 
 /* Environment */
 #define CONFIG_ENV_SIZE			0x10000
-#define CONFIG_ENV_OFFSET		0x90000
+#define CONFIG_ENV_OFFSET		0x60000
 #define CONFIG_ENV_SECT_SIZE		(4 << 10)
+#undef CONFIG_BOOTCOMMAND
+#define CONFIG_BOOTCOMMAND		"bootm 20080000"
 
 #endif	/* __CONFIG_H */
