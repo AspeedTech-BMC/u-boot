@@ -1581,6 +1581,8 @@ endif
 
 ifeq ($(CONFIG_USE_DEFAULT_ENV_FILE),y)
 prepare1: $(defaultenv_h)
+
+envtools: $(defaultenv_h)
 endif
 
 archprepare: prepare1 scripts_basic
