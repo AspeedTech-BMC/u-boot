@@ -43,7 +43,7 @@ int aspeed_sg_digest(struct aspeed_sg_list *src_list, u32 list_length, u32 lengt
 		writel(0x40058, ASPEED_HACE_HASH_CMD);
 		break;
 	case ASPEED_SHA384:
-		writel(0x400468, ASPEED_HACE_HASH_CMD);
+		writel(0x40468, ASPEED_HACE_HASH_CMD);
 		break;
 	case ASPEED_SHA512:
 		writel(0x40068, ASPEED_HACE_HASH_CMD);
