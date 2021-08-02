@@ -10,7 +10,7 @@
 #include <efi_api.h>
 #endif
 #include <display_options.h>
-#include <version.h>
+#include <version_string.h>
 
 #define FAKE_BUILD_TAG	"jenkins-u-boot-denx_uboot_dm-master-build-aarch64" \
 			"and a lot more text to come"

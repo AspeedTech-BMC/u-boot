@@ -66,7 +66,7 @@
 
 #include <common.h>
 #include <fdtdec.h>
-#include <version.h>
+#include <version_string.h>
 #include <malloc.h>
 #include <video.h>
 #include <linux/compiler.h>
@@ -116,7 +116,6 @@
  * Console device
  */
 
-#include <version.h>
 #include <linux/types.h>
 #include <stdio_dev.h>
 #include <video_font.h>

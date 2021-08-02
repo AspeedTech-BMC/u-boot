@@ -7,7 +7,7 @@
 #include <common.h>
 #include <console.h>
 #include <div64.h>
-#include <version.h>
+#include <version_string.h>
 #include <linux/ctype.h>
 #include <asm/io.h>
 

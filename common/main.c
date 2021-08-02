@@ -10,7 +10,7 @@
 #include <autoboot.h>
 #include <cli.h>
 #include <console.h>
-#include <version.h>
+#include <version_string.h>
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
