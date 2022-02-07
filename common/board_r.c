@@ -48,7 +48,7 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <efi_loader.h>
-#if defined(CONFIG_DM_GPIO_HOG)
+#if defined(CONFIG_GPIO_HOG)
 #include <asm/gpio.h>
 #endif
 
@@ -788,7 +788,7 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_CMD_NET
 	initr_ethaddr,
 #endif
-#if defined(CONFIG_DM_GPIO_HOG)
+#if defined(CONFIG_GPIO_HOG)
 	gpio_hog_probe_all,
 #endif
 #ifdef CONFIG_BOARD_LATE_INIT
