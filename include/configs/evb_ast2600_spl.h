@@ -32,7 +32,7 @@
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
 	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
-	"bootspi=fdt addr 20100000 && fdt header get fitsize totalsize && cp.b 20100000 ${loadaddr} ${fitsize} && bootm; echo Error loading kernel FIT image\0"	\
+	"bootspi=fdt addr 21520000 && fdt header get fitsize totalsize && cp.b 21520000 ${loadaddr} ${fitsize} && bootm; echo Error loading kernel FIT image\0"	\
 	"verify=yes\0"	\
 	""
 
