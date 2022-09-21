@@ -278,7 +278,6 @@ static void ast2500_sdrammc_calc_size(struct dram_info *info)
 			 << SDRAM_CONF_CAP_SHIFT));
 }
 
-#ifdef CONFIG_ASPEED_ECC
 static void ast2500_sdrammc_ecc_enable(struct dram_info *info, u32 conf_size_mb)
 {
 	struct ast2500_sdrammc_regs *regs = info->regs;
@@ -313,7 +312,6 @@ static void ast2500_sdrammc_ecc_enable(struct dram_info *info, u32 conf_size_mb)
 	writel(0x400, &regs->ecc_test_ctrl);
 	printf("ECC enable, ");
 }
-#endif
 
 static int ast2500_sdrammc_init_ddr4(struct udevice *dev)
 {
@@ -371,14 +369,12 @@ static int ast2500_sdrammc_init_ddr4(struct udevice *dev)
 
 	writel(SDRAM_MISC_DDR4_TREFRESH, &info->regs->misc_control);
 
-#ifdef CONFIG_ASPEED_ECC
 	if (dev_read_bool(dev, "aspeed,ecc-enabled")) {
 		u32 ecc_size;
 
 		ecc_size = dev_read_u32_default(dev, "aspeed,ecc-size-mb", 0);
 		ast2500_sdrammc_ecc_enable(info, ecc_size);
 	}
-#endif
 
 	/* Enable all requests except video & display */
 	writel(SDRAM_REQ_USB20_EHCI1
