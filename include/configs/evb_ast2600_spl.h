@@ -26,12 +26,9 @@
 #define CONFIG_SPL_LOAD_FIT_ADDRESS	0x00010000
 
 /* Extra ENV for Boot Command */
-#define STR_HELPER(n)	#n
-#define STR(n)		STR_HELPER(n)
-
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
-	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
+	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0"	\
 	"bootspi=fdt addr 20100000 && fdt header get fitsize totalsize && cp.b 20100000 ${loadaddr} ${fitsize} && bootm; echo Error loading kernel FIT image\0"	\
 	"verify=yes\0"	\
 	""
