@@ -41,6 +41,7 @@
 
 &sdrammc {
 	clock-frequency = <400000000>;
+	aspeed,ecc-enabled;
 };
 
 &wdt2 {
