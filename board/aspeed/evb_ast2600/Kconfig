@@ -10,4 +10,7 @@ config SYS_CONFIG_NAME
 	string "board configuration name"
 	default "evb_ast2600"
 
+config ASPEED_DCSCM_CARD_A2
+	bool "AST2600 DCSCM demo board A2 version"
+	default n
 endif

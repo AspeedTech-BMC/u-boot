@@ -122,6 +122,37 @@ static void __maybe_unused espi_init(void)
 	writel(reg, ESPI_BASE + 0x000);
 }
 
+#ifdef CONFIG_ASPEED_DCSCM_CARD_A2
+/**
+ * @brief	Reset PHY for Aspeed AST2600 DCSCM Card A2 version
+ *
+ * Aspeed AST2600 DCSCM Card A2 requires to reset Eth PHY by GPIOC1
+ * Where GPIOC1 controls the reset signal of RMII PHY 2
+*/
+void reset_eth_phy_dcscm_card_a2(void)
+{
+#define GRP_C		16
+#define PHY_RESET_MASK  (BIT(GRP_C + 1))
+	u32 value = readl(0x1e780000);
+	u32 direction = readl(0x1e780004);
+
+	debug("AST2600-DCSCM A2 card reset phy\n");
+
+	direction |= PHY_RESET_MASK;
+	value &= ~PHY_RESET_MASK;
+	writel(direction, 0x1e780004);
+	writel(value, 0x1e780000);
+	while((readl(0x1e780000) & PHY_RESET_MASK) != 0);
+
+        /* Tgap = 10ms */
+	udelay(10000);
+
+	value |= PHY_RESET_MASK;
+	writel(value, 0x1e780000);
+	while((readl(0x1e780000) & PHY_RESET_MASK) != PHY_RESET_MASK);
+}
+#endif
+
 int board_early_init_f(void)
 {
 #if 0
@@ -129,5 +160,8 @@ int board_early_init_f(void)
 	sgpio_init();
 #endif
 	espi_init();
+#ifdef CONFIG_ASPEED_DCSCM_CARD_A2
+	reset_eth_phy_dcscm_card_a2();
+#endif
 	return 0;
 }
