@@ -199,7 +199,7 @@ static int ast2600_i2c_write_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 static int ast2600_i2c_deblock(struct udevice *dev)
 {
 	struct ast2600_i2c_priv *priv = dev_get_priv(dev);
-	u32 csr = readl(&priv->regs->cmd_sts);
+	u32 csr = readl(&priv->regs->trx_buff);
 	u32 isr;
 	int ret;
 
@@ -210,7 +210,7 @@ static int ast2600_i2c_deblock(struct udevice *dev)
 		       AST2600_I2CC_MULTI_MASTER_DIS,
 	       &priv->regs->fun_ctrl);
 
-	csr = readl(&priv->regs->cmd_sts);
+	csr = readl(&priv->regs->trx_buff);
 
 	if (!(csr & AST2600_I2CC_SDA_LINE_STS) &&
 	    (csr & AST2600_I2CC_SCL_LINE_STS)) {
