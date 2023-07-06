@@ -17,6 +17,7 @@
 #include <asm/gpio.h>
 #include <spi.h>
 #include <i2c.h>
+#include <timestamp.h>
 #include <version.h>
 #include <vsprintf.h>
 
