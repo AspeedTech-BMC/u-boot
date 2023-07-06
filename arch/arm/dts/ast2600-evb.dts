@@ -36,6 +36,23 @@
 			clock-frequency = <800000000>;
 		};
 	};
+
+	/*
+	 * reserved-memory layout
+	 * 0x8a00_0000 ~ 0x8a00_FFFF is reserved for mctp0 controller in linux side.
+	 * 0x8a01_0000 ~ 0x8a01_FFFF is reserved for mctp1 controller in linux side.
+	 */
+	reserved-memory {
+		mctp0_reserved: mctp0_reserved@8a000000 {
+			reg = <0x8a000000 0x10000>;
+			no-map;
+		};
+
+		mctp1_reserved: mctp0_reserved@8a010000 {
+			reg = <0x8a010000 0x10000>;
+			no-map;
+		};
+	};
 };
 
 &uart5 {

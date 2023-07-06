@@ -21,6 +21,17 @@
 		ethernet0 = &mac0;
 		ethernet1 = &mac1;
 	};
+
+	/*
+	 * reserved-memory layout
+	 * 0x8a00_0000 ~ 0x8a00_FFFF is reserved for mctp controller in linux side.
+	 */
+	 reserved-memory {
+		mctp_reserved: mctp_reserved@8a000000 {
+			reg = <0x8a000000 0x10000>;
+			no-map;
+		};
+	};
 };
 
 &uart5 {
