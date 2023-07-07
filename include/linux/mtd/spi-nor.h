@@ -438,4 +438,6 @@ struct spi_nor_hwcaps {
  */
 int spi_nor_scan(struct spi_nor *nor);
 
+void w25q02gjv_fixup(struct spi_nor *nor);
+
 #endif

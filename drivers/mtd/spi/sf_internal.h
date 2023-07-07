@@ -65,6 +65,8 @@ struct flash_info {
 #define NO_CHIP_ERASE		BIT(12) /* Chip does not support chip erase */
 #define SPI_NOR_SKIP_SFDP	BIT(13)	/* Skip parsing of SFDP tables */
 #define USE_CLSR		BIT(14)	/* use CLSR command */
+
+	void (*fixup)(struct spi_nor *nor);
 };
 
 extern const struct flash_info spi_nor_ids[];

@@ -856,6 +856,54 @@ static bool cypress_s25hx_t(const struct flash_info *info)
 	return false;
 }
 
+static ssize_t spi_nor_read_data_w25q02gjv(struct spi_nor *nor, loff_t from,
+					   size_t len, u_char *buf)
+{
+	struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(nor->read_opcode, 1),
+				   SPI_MEM_OP_ADDR(nor->addr_width, from, 1),
+				   SPI_MEM_OP_DUMMY(nor->read_dummy, 1),
+				   SPI_MEM_OP_DATA_IN(len, buf, 1));
+	size_t remaining = len;
+	int ret;
+	u32 die_sz = 0x04000000;
+
+	/* get transfer protocols. */
+	op.cmd.buswidth = spi_nor_get_protocol_inst_nbits(nor->read_proto);
+	op.addr.buswidth = spi_nor_get_protocol_addr_nbits(nor->read_proto);
+	op.dummy.buswidth = op.addr.buswidth;
+	op.data.buswidth = spi_nor_get_protocol_data_nbits(nor->read_proto);
+
+	/* convert the dummy cycles to the number of bytes */
+	op.dummy.nbytes = (nor->read_dummy * op.dummy.buswidth) / 8;
+
+	while (remaining) {
+		op.data.nbytes = remaining < UINT_MAX ? remaining : UINT_MAX;
+
+		if (op.data.nbytes > die_sz - (op.addr.val % die_sz))
+			op.data.nbytes = die_sz - (op.addr.val % die_sz);
+
+		ret = spi_mem_adjust_op_size(nor->spi, &op);
+		if (ret)
+			return ret;
+
+		ret = spi_mem_exec_op(nor->spi, &op);
+		if (ret)
+			return ret;
+
+		op.addr.val += op.data.nbytes;
+		remaining -= op.data.nbytes;
+		op.data.buf.in += op.data.nbytes;
+	}
+
+	return len;
+}
+
+void w25q02gjv_fixup(struct spi_nor *nor)
+{
+	nor->read = spi_nor_read_data_w25q02gjv;
+}
+
 #if defined(CONFIG_SPI_FLASH_STMICRO) || defined(CONFIG_SPI_FLASH_SST)
 /* Write status register and ensure bits in mask match written values */
 static int write_sr_and_check(struct spi_nor *nor, u8 status_new, u8 mask)
@@ -2944,6 +2992,9 @@ int spi_nor_scan(struct spi_nor *nor)
 	nor->size = mtd->size;
 	nor->erase_size = mtd->erasesize;
 	nor->sector_size = mtd->erasesize;
+
+	if (info->fixup)
+		info->fixup(nor);
 
 #ifndef CONFIG_SPL_BUILD
 	printf("SF: Detected %s with page size ", nor->name);

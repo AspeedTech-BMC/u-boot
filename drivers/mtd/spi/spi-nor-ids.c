@@ -9,6 +9,7 @@
 #include <common.h>
 #include <spi.h>
 #include <spi_flash.h>
+#include <linux/mtd/spi-nor.h>
 
 #include "sf_internal.h"
 
@@ -353,6 +354,7 @@ const struct flash_info spi_nor_ids[] = {
 		INFO("w25q02jv", 0xef7022, 0, 64 * 1024, 4096,
 			SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		.fixup = w25q02gjv_fixup,
 	},
 	{
 		INFO("w25q01jvfim", 0xef7021, 0, 64 * 1024, 2048,
