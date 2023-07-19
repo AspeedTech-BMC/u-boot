@@ -259,7 +259,7 @@ static int read_fsr(struct spi_nor *nor)
  * location. Return the configuration register value.
  * Returns negative if error occurred.
  */
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || defined(CONFIG_SPI_FLASH_XMC)
 static int read_cr(struct spi_nor *nor)
 {
 	int ret;
@@ -1529,7 +1529,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 }
 #endif
 
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || defined(CONFIG_SPI_FLASH_XMC)
 /*
  * Write status Register and configuration register with 2 bytes
  * The first byte will be written to the status register, while the
@@ -2532,8 +2532,14 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		}
 
 		/* need to disable hold/reset pin feature */
-		if (JEDEC_MFR(info) == SNOR_MFR_ST)
+#ifdef CONFIG_SPI_FLASH_STMICRO
+		if ((JEDEC_MFR(info) == SNOR_MFR_ST))
 			params->quad_enable = micron_read_cr_quad_enable;
+#endif
+
+#ifdef CONFIG_SPI_FLASH_XMC
+		params->quad_enable = winbond_sr2_bit1_quad_enable;
+#endif
 
 		if (JEDEC_MFR(info) == SNOR_MFR_GIGADEVICE)
 			params->quad_enable = winbond_sr2_bit1_quad_enable;
