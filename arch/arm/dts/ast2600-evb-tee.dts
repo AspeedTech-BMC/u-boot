@@ -45,6 +45,11 @@
 	 * 0x8a01_0000 ~ 0x8a01_FFFF is reserved for mctp1 controller in linux side.
 	 */
 	reserved-memory {
+		optee_core: optee_core@88000000 {
+			reg = <0x88000000 0x1000000>;
+			no-map;
+		};
+
 		mctp0_reserved: mctp0_reserved@8a000000 {
 			reg = <0x8a000000 0x10000>;
 			no-map;
