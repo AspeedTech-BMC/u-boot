@@ -1,13 +1,10 @@
 /dts-v1/;
 
-#include "ast2600-u-boot.dtsi"
+#include "ast2600-evb.dts"
 
 / {
 	model = "AST2600 EVB w/ NCSI";
 };
-
-/delete-node/&mac0;
-/delete-node/&mac1;
 
 &mac2 {
 	status = "okay";
