@@ -603,7 +603,7 @@ static int ftgmac100_probe(struct udevice *dev)
 			return -EINVAL;
 		}
 
-		printf("%s - NCSI detected\n", __func__);
+		dev_info(dev, "\n%s: NCSI detected", dev->name);
 	} else {
 		ret = ftgmac100_mdio_init(dev);
 		if (ret) {
