@@ -277,6 +277,7 @@ struct aspeed_spi_priv {
 	int (*spi_exec_op_cmd)(struct aspeed_spi_priv *priv,
 			       struct aspeed_spi_flash *flash,
 			       struct aspeed_spi_op *op);
+	bool pure_spi_mode_only;
 };
 
 static u32 aspeed_spi_flash_to_addr(struct aspeed_spi_flash *flash,
@@ -1044,9 +1045,9 @@ static ssize_t aspeed_spi_read(struct aspeed_spi_priv *priv,
 	 * - if read offset is smaller than the decoded start address
 	 *   and the decoded range is not multiple of flash size.
 	 */
-	if ((offset + len >= flash->ahb_size) || \
-		(offset < ((int)flash->ahb_base & 0x0FFFFFFF) && \
-		(((int)flash->ahb_base & 0x0FFFFFFF) % flash->spi->size) != 0)) {
+	if (priv->pure_spi_mode_only || (offset + len >= flash->ahb_size) ||
+	    (offset < ((int)flash->ahb_base & 0x0FFFFFFF) &&
+	     (((int)flash->ahb_base & 0x0FFFFFFF) % flash->spi->size) != 0)) {
 		return aspeed_spi_read_user(priv, flash, cmdlen, cmdbuf,
 					    len, read_buf);
 	}
@@ -1586,6 +1587,11 @@ static int aspeed_spi_flash_set_segment(struct aspeed_spi_priv *priv,
 	flash->ahb_size = flash->spi->size;
 
 	if (priv->new_ver) {
+		if (priv->pure_spi_mode_only) {
+			flash->ahb_size = priv->ahb_size / priv->num_cs;
+			flash->ahb_size &= 0xffe00000;
+		}
+
 		for (cs = 0; cs < ASPEED_SPI_MAX_CS; cs++) {
 			reg_val = readl(&priv->regs->segment_addr[cs]);
 			if (reg_val != 0 &&
@@ -1901,6 +1907,8 @@ static int aspeed_spi_probe(struct udevice *bus)
 	} else {
 		priv->spi_exec_op_cmd = NULL;
 	}
+
+	priv->pure_spi_mode_only = dev_read_bool(bus, "pure-spi-mode-only");
 
 	/*
 	 * There are some slight differences between the FMC and the
