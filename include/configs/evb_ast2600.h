@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) ASPEED Technology Inc.
+ *
  */
 
 #ifndef __CONFIG_H
@@ -15,5 +16,30 @@
 
 /* Memory Info */
 #define CONFIG_SYS_LOAD_ADDR		0x83000000
+
+/* SPL */
+#define CONFIG_SPL_TEXT_BASE		0x00000000
+#define CONFIG_SPL_MAX_SIZE		0x00010000
+#define CONFIG_SPL_STACK		0x10016000
+#define CONFIG_SPL_BSS_START_ADDR	0x90000000
+#define CONFIG_SPL_BSS_MAX_SIZE		0x00100000
+#define CONFIG_SPL_LOAD_FIT_ADDRESS	0x00010000
+
+/* Extra ENV for Boot Command */
+#define STR_HELPER(n)	#n
+#define STR(n)		STR_HELPER(n)
+
+#undef CONFIG_EXTRA_ENV_SETTINGS
+#define CONFIG_EXTRA_ENV_SETTINGS	\
+	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
+	"bootspi=fdt addr 20160000 && fdt header get fitsize totalsize && cp.b 20160000 ${loadaddr} ${fitsize} && bootm; echo Error loading kernel FIT image\0"	\
+	"verify=yes\0"	\
+	""
+
+#ifdef CONFIG_SPL_TINY
+#ifdef CONFIG_SPL_BUILD
+#define CONFIG_SYS_NS16550_REG_SIZE 2
+#endif
+#endif
 
 #endif	/* __CONFIG_H */
