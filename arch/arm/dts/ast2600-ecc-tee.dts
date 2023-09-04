@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright 2023 Aspeed Technology Inc.
+/dts-v1/;
+
+#include "ast2600-evb-tee.dts"
+
+&sdrammc {
+	clock-frequency = <400000000>;
+	aspeed,ecc-enabled;
+};
