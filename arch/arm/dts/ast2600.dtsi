@@ -2085,3 +2085,7 @@
 		groups = "PCIE1RC";
         };
 };
+
+#ifdef CONFIG_ASPEED_DP
+#include "ast2600-dp-fw.dtsi"
+#endif
