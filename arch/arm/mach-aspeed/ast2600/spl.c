@@ -36,8 +36,8 @@ void board_init_f(ulong dummy)
 	preloader_console_init();
 	dram_init();
 	aspeed_mmc_init();
-	spl_boot_from_uart_wdt_disable();
 #endif
+	spl_boot_from_uart_wdt_disable();
 }
 
 #ifdef CONFIG_SPL_BOARD_INIT
