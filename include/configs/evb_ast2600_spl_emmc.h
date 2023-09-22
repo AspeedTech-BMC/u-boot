@@ -42,10 +42,4 @@
 
 #define CONFIG_SUPPORT_EMMC_BOOT
 
-#ifdef CONFIG_SPL_TINY
-#ifdef CONFIG_SPL_BUILD
-#define CONFIG_SYS_NS16550_REG_SIZE 2
-#endif
-#endif
-
 #endif	/* __CONFIG_H */

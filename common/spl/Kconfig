@@ -37,13 +37,6 @@ config HANDOFF
 
 if SPL
 
-config SPL_TINY
-	bool "Minilize the SPL size"
-	depends on ASPEED_AST2600
-	help
-	  This option can minilize the SPL size to compatible with AST2600-A0
-	  secure boot.
-
 config SPL_HANDOFF
 	bool "Pass hand-off information from SPL to U-Boot proper"
 	depends on HANDOFF
