@@ -26,11 +26,11 @@
 
 /* Extra ENV for Boot Command */
 #define STR_HELPER(n)	#n
-#define STR(n)		STR_HELPER(n)
+#define _STR(n)		STR_HELPER(n)
 
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
-	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
+	"loadaddr=" _STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
 	"bootside=a\0"	\
 	"rootfs=rofs-a\0"	\
 	"setmmcargs=setenv bootargs ${bootargs} rootwait root=PARTLABEL=${rootfs}\0"	\
