@@ -11,6 +11,7 @@ choice
 config TARGET_EVB_AST2600
 	bool "EVB-AST2600"
 	depends on ASPEED_AST2600
+	select ARCH_MISC_INIT
 	help
 	  EVB-AST2600 is Aspeed evaluation board for AST2600A0 chip.
 	  It has 512M of RAM, 32M of SPI flash, two Ethernet ports,

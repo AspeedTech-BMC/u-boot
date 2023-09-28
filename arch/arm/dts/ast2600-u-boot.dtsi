@@ -4,6 +4,12 @@
 #include "ast2600.dtsi"
 
 / {
+	config {
+		u-boot,mmc-env-offset = <0x5000>;      /* @  20KB */
+	};
+};
+
+/ {
 	scu: clock-controller@1e6e2000 {
 		compatible = "aspeed,ast2600-scu";
 		reg = <0x1e6e2000 0x1000>;
