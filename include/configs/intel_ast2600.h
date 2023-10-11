@@ -29,6 +29,9 @@
 #define STR_HELPER(n)	#n
 #define STR(n)		STR_HELPER(n)
 
+#define SPI_BOOTCOMMAND "run bootspi"
+#define EMMC_BOOTCOMMAND "run bootmmc"
+
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
 	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
