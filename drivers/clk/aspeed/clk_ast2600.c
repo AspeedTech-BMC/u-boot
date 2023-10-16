@@ -539,7 +539,7 @@ static void ast2600_enable_uart_pinmux(struct ast2600_scu *scu, int uart_idx)
 		scu->pinmux_ctrl4 |= (BIT(14) | BIT(15));
 		break;
 	case 5:
-		/* do nothgin */
+		/* do nothing*/
 		break;
 	case 6:
 		scu->pinmux_ctrl5 |= (BIT(16) | BIT(17));
