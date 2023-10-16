@@ -290,7 +290,6 @@
 				pinctrl: pinctrl {
 					compatible = "aspeed,g6-pinctrl";
 					aspeed,external-nodes = <&gfx &lhc>;
-					u-boot,dm-pre-reloc;
 				};
 
 				vga_scratch: scratch {
@@ -1030,8 +1029,6 @@
 };
 
 &pinctrl {
-	u-boot,dm-pre-reloc;
-
 	pinctrl_fmcquad_default: fmcquad_default {
 		function = "FMCQUAD";
 		groups = "FMCQUAD";
@@ -1730,25 +1727,21 @@
 	pinctrl_rxd1_default: rxd1_default {
 		function = "RXD1";
 		groups = "RXD1";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_rxd2_default: rxd2_default {
 		function = "RXD2";
 		groups = "RXD2";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_rxd3_default: rxd3_default {
 		function = "RXD3";
 		groups = "RXD3";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_rxd4_default: rxd4_default {
 		function = "RXD4";
 		groups = "RXD4";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_salt1_default: salt1_default {
@@ -1989,25 +1982,21 @@
 	pinctrl_txd1_default: txd1_default {
 		function = "TXD1";
 		groups = "TXD1";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_txd2_default: txd2_default {
 		function = "TXD2";
 		groups = "TXD2";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_txd3_default: txd3_default {
 		function = "TXD3";
 		groups = "TXD3";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_txd4_default: txd4_default {
 		function = "TXD4";
 		groups = "TXD4";
-		u-boot,dm-pre-reloc;
 	};
 
 	pinctrl_uart6_default: uart6_default {
