@@ -621,7 +621,6 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
-				u-boot,dm-pre-reloc;
 				status = "disabled";
 			};
 
@@ -635,7 +634,6 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
-				u-boot,dm-pre-reloc;
 				status = "disabled";
 			};
 
