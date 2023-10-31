@@ -27,6 +27,12 @@ enum env_location env_get_location(enum env_operation op, int prio)
 
 int arch_misc_init(void)
 {
+	const char *p;
+
+	p = env_get("bootcmd");
+	if (!p)
+		return 0;
+
 	if (IS_ENABLED(CONFIG_ARCH_MISC_INIT)) {
 		if (readl(ASPEED_HW_STRAP1) & BIT(2))
 			env_set("bootcmd", EMMC_BOOTCOMMAND);
