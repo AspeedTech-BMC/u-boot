@@ -30,7 +30,7 @@ int arch_misc_init(void)
 	const char *p;
 
 	p = env_get("bootcmd");
-	if (!p)
+	if (p)
 		return 0;
 
 	if (IS_ENABLED(CONFIG_ARCH_MISC_INIT)) {
