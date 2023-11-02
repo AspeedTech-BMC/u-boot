@@ -31,9 +31,6 @@
 #define STR_HELPER(n)	#n
 #define _STR(n)		STR_HELPER(n)
 
-#define SPI_BOOTCOMMAND "run bootspi"
-#define EMMC_BOOTCOMMAND "run bootmmc"
-
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS	\
 	"loadaddr=" _STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
@@ -44,6 +41,10 @@
 	"boota=setenv bootpart 2; setenv rootfs rofs-a; run setmmcargs; ext4load mmc 0:${bootpart} ${loadaddr} fitImage && bootm; echo Error loading kernel FIT image\0"	\
 	"bootb=setenv bootpart 3; setenv rootfs rofs-b; run setmmcargs; ext4load mmc 0:${bootpart} ${loadaddr} fitImage && bootm; echo Error loading kernel FIT image\0"	\
 	"bootmmc=if test \"${bootside}\" = \"b\"; then run bootb; run boota; else run boota; run bootb; fi\0"	\
+	"boot_ast2700=" \
+	"echo \"Boot from ${boot_device}!\";" \
+	"if test ${boot_device} = mmc; then run bootmmc; fi;" \
+	"if test ${boot_device} = spi; then run bootspi; fi;" \
 	"verify=yes\0"	\
 	""
 
