@@ -58,6 +58,7 @@ ENTRY(aspeed_spi_fastcpy)
 	str	r1, [r3]
 
 	ldr	r3, =AST_FMC_DMA_LENGTH
+	sub	r2, #1
 	str	r2, [r3]
 
 	ldr	r0, =AST_FMC_DMA_CTRL
