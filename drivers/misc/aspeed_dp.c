@@ -3,7 +3,6 @@
  * Copyright (C) ASPEED Technology Inc.
  */
 
-#include <linux/bitfield.h>
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
@@ -13,6 +12,8 @@
 #include <reset.h>
 #include <fdtdec.h>
 #include <asm/io.h>
+#include <linux/bitfield.h>
+#include <linux/delay.h>
 
 #define MCU_CTRL                        0x00e0
 #define  MCU_CTRL_AHBS_IMEM_EN          BIT(0)
@@ -114,8 +115,10 @@ static int aspeed_dp_probe(struct udevice *dev)
 
 	/* reset for DPTX and DPMCU if MCU isn't running */
 	if (is_mcu_stop) {
+		mdelay(10);
 		reset_assert(&dp_reset_ctl);
 		reset_assert(&dpmcu_reset_ctrl);
+		udelay(10);
 		reset_deassert(&dp_reset_ctl);
 		reset_deassert(&dpmcu_reset_ctrl);
 	}
