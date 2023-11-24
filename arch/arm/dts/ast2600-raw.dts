@@ -2,136 +2,10 @@
 // Copyright 2023 Aspeed Technology Inc.
 /dts-v1/;
 
-#include "ast2600-u-boot.dtsi"
+#include "ast2600-evb.dts"
 
 / {
-	model = "AST2600 EVB";
-	compatible = "aspeed,ast2600-evb", "aspeed,ast2600";
-
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x40000000>;
-	};
-
-	chosen {
-		stdout-path = &uart5;
-	};
-
-	aliases {
-		mmc0 = &emmc_slot0;
-		mmc1 = &sdhci_slot0;
-		mmc2 = &sdhci_slot1;
-		spi0 = &fmc;
-		spi1 = &spi1;
-		spi2 = &spi2;
-		ethernet0 = &mac0;
-		ethernet1 = &mac1;
-		ethernet2 = &mac2;
-		ethernet3 = &mac3;
-	};
-
-	cpus {
-		cpu@0 {
-			clock-frequency = <800000000>;
-		};
-		cpu@1 {
-			clock-frequency = <800000000>;
-		};
-	};
-
-	/*
-	 * reserved-memory layout
-	 * 0xb100_0000 ~ 0xb100_FFFF is reserved for mctp0 controller in linux side.
-	 * 0xb101_0000 ~ 0xb101_FFFF is reserved for mctp1 controller in linux side.
-	 */
-	reserved-memory {
-		mctp0_reserved: mctp0_reserved@b1000000 {
-			reg = <0xb1000000 0x10000>;
-			no-map;
-		};
-
-		mctp1_reserved: mctp0_reserved@b1010000 {
-			reg = <0xb1010000 0x10000>;
-			no-map;
-		};
-	};
-};
-
-&uart5 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&sdrammc {
-	clock-frequency = <400000000>;
-};
-
-&wdt1 {
-	status = "okay";
-};
-
-&wdt2 {
-	status = "okay";
-};
-
-&wdt3 {
-	status = "okay";
-};
-
-&mdio {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <	&pinctrl_mdio1_default &pinctrl_mdio2_default
-			&pinctrl_mdio3_default &pinctrl_mdio4_default>;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	ethphy0: ethernet-phy@0 {
-		reg = <0>;
-	};
-
-	ethphy1: ethernet-phy@1 {
-		reg = <0>;
-	};
-
-	ethphy2: ethernet-phy@2 {
-		reg = <0>;
-	};
-
-	ethphy3: ethernet-phy@3 {
-		reg = <0>;
-	};
-};
-
-&mac0 {
-	status = "okay";
-	phy-mode = "rgmii-rxid";
-	phy-handle = <&ethphy0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default>;
-};
-
-&mac1 {
-	status = "okay";
-	phy-mode = "rgmii-rxid";
-	phy-handle = <&ethphy1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default>;
-};
-
-&mac2 {
-	status = "okay";
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy2>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii3_default>;
-};
-
-&mac3 {
-	status = "okay";
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy3>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii4_default>;
+	model = "AST2600 RAW";
 };
 
 &fmc {
@@ -143,22 +17,22 @@
 	flash@0 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 
 	flash@1 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 
 	flash@2 {
 		status = "disabled";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 };
 
@@ -173,15 +47,15 @@
 	flash@0 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 
 	flash@1 {
 		status = "disabled";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 };
 
@@ -195,151 +69,54 @@
 	flash@0 {
 		status = "okay";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 
 	flash@1 {
 		status = "disabled";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 
 	flash@2 {
 		status = "disabled";
 		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
 	};
 };
 
 &emmc {
-	u-boot,dm-pre-reloc;
-	timing-phase = <0x000f0097>;
+	status = "disabled";
 };
 
 &emmc_slot0 {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-	bus-width = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_emmc_default>;
-	sdhci-drive-type = <1>;
+	status = "disabled";
 };
 
 &sdhci {
-	timing-phase = <0x00c6375f>;
+	status = "disabled";
 };
 
 &sdhci_slot0 {
-	status = "okay";
-	bus-width = <4>;
-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd1_default>;
-	sdhci-drive-type = <1>;
+	status = "disabled";
 };
 
 &sdhci_slot1 {
-	status = "okay";
-	bus-width = <4>;
-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd2_default>;
-	sdhci-drive-type = <1>;
-};
-
-&i2c4 {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c5_default>;
-};
-
-&i2c5 {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c6_default>;
-};
-
-&i2c6 {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c7_default>;
-};
-
-&i2c7 {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c8_default>;
-};
-
-&i2c8 {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c9_default>;
+	status = "disabled";
 };
 
 &pcie_phy1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie_bridge {
-	status = "okay";
+	status = "disabled";
 };
-
-#if 0
-&fsim0 {
-	status = "okay";
-};
-
-&fsim1 {
-	status = "okay";
-};
-#endif
-
-#if 0
-&vhub {
-	status = "okay";
-};
-#endif
 
 &ehci1 {
-	status = "okay";
+	status = "disabled";
 };
 
-&display_port {
-	status = "okay";
-};
-
-&scu {
-	mac0-clk-delay = <0x10 0x0a
-			  0x10 0x10
-			  0x10 0x10>;
-	mac1-clk-delay = <0x10 0x0a
-			  0x10 0x10
-			  0x10 0x10>;
-	mac2-clk-delay = <0x08 0x04
-			  0x08 0x04
-			  0x08 0x04>;
-	mac3-clk-delay = <0x08 0x04
-			  0x08 0x04
-			  0x08 0x04>;
-};
-
-&hace {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
-
-&acry {
-	u-boot,dm-pre-reloc;
-	status = "okay";
-};
