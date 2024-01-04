@@ -124,12 +124,6 @@ static int aspeed_dp_probe(struct udevice *dev)
 	enable or disable sending EDID to Host	*/
 	writel(readl(dp->ctrl_base + 0xB8) & ~(BIT(24) | BIT(28)), dp->ctrl_base + 0xB8);
 
-	/* DPMCU */
-	/* clear display format and enable region */
-	writel(0, dp->mcud_base + 0x0de0);
-
-	_redriver_cfg(dev);
-
 	/* load DPMCU firmware to internal instruction memory */
 	if (is_mcu_stop) {
 		mcu_ctrl = MCU_CTRL_CONFIG | MCU_CTRL_IMEM_CLK_OFF | MCU_CTRL_IMEM_SHUT_DOWN |
@@ -147,6 +141,12 @@ static int aspeed_dp_probe(struct udevice *dev)
 
 		for (i = 0; i < ARRAY_SIZE(fw); i++)
 			writel(fw[i], dp->mcui_base + (i * 4));
+
+		/* DPMCU */
+		/* clear display format and enable region */
+		writel(0, dp->mcud_base + 0x0de0);
+
+		_redriver_cfg(dev);
 
 		/* release DPMCU internal reset */
 		mcu_ctrl &= ~MCU_CTRL_AHBS_IMEM_EN;
