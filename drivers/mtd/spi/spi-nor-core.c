@@ -259,7 +259,8 @@ static int read_fsr(struct spi_nor *nor)
  * location. Return the configuration register value.
  * Returns negative if error occurred.
  */
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || \
+	defined(CONFIG_SPI_FLASH_XTX)
 static int read_cr(struct spi_nor *nor)
 {
 	int ret;
@@ -409,6 +410,7 @@ static int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 	case SNOR_MFR_GIGADEVICE:
 	case SNOR_MFR_ISSI:
 	case SNOR_MFR_CYPRESS:
+	case SNOR_MFR_XTX:
 		if (need_wren)
 			write_enable(nor);
 
@@ -1577,7 +1579,8 @@ static int macronix_quad_enable(struct spi_nor *nor)
 }
 #endif
 
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || \
+	defined(CONFIG_SPI_FLASH_XTX)
 /*
  * Write status Register and configuration register with 2 bytes
  * The first byte will be written to the status register, while the
@@ -2318,7 +2321,8 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	case BFPT_DWORD15_QER_NONE_111:
 		params->quad_enable = NULL;
 		break;
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || \
+	defined(CONFIG_SPI_FLASH_XTX)
 	case BFPT_DWORD15_QER_SR2_BIT1_BUGGY:
 	case BFPT_DWORD15_QER_SR2_BIT1_NO_RD:
 		params->quad_enable = spansion_no_read_cr_quad_enable;
@@ -2329,7 +2333,8 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		params->quad_enable = macronix_quad_enable;
 		break;
 #endif
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || \
+	defined(CONFIG_SPI_FLASH_XTX)
 	case BFPT_DWORD15_QER_SR2_BIT1:
 		params->quad_enable = spansion_read_cr_quad_enable;
 		break;
@@ -2533,7 +2538,8 @@ static int spi_nor_init_params(struct spi_nor *nor,
 #endif
 
 		default:
-#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
+#if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND) || \
+	defined(CONFIG_SPI_FLASH_XTX)
 			/* Kept only for backward compatibility purpose. */
 			params->quad_enable = spansion_read_cr_quad_enable;
 #endif

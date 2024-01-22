@@ -369,6 +369,18 @@ const struct flash_info spi_nor_ids[] = {
 	{ INFO("w25q256", 0xef4019, 0, 64 * 1024, 512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
 	{ INFO("w25m512jv", 0xef7119, 0, 64 * 1024, 1024, SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ) },
 #endif
+#ifdef CONFIG_SPI_FLASH_XTX
+	{
+		INFO("xt25w512b", 0x0b651a, 0, 64 * 1024, 1024,
+		     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+		     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+	},
+	{
+		INFO("xt25w01gb", 0x0b651b, 0, 64 * 1024, 2048,
+		     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+		     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+	},
+#endif
 #ifdef CONFIG_SPI_FLASH_XMC
 	/* XMC (Wuhan Xinxin Semiconductor Manufacturing Corp.) */
 	{ INFO("XM25QH64A", 0x207017, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
