@@ -50,7 +50,7 @@
 			no-map;
 		};
 
-		mctp1_reserved: mctp0_reserved@b1010000 {
+		mctp1_reserved: mctp1_reserved@b1010000 {
 			reg = <0xb1010000 0x10000>;
 			no-map;
 		};
