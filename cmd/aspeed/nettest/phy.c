@@ -2116,6 +2116,63 @@ void phy_atheros (MAC_ENGINE *eng)
 }
 
 //------------------------------------------------------------
+void phy_motor_comm(MAC_ENGINE *eng)
+{
+	uint32_t reg;
+
+	// RX internal delay
+	phy_write(eng, 0x1e, 0xA001);
+	reg = phy_read(eng, 0x1f);
+	if (eng->arg.ctrl.b.phy_rx_delay_en)
+		reg |= BIT(8);
+	else
+		reg &= ~BIT(8);
+	phy_write(eng, 0x1F, reg);
+
+	if (eng->phy.loopback) {
+		if (eng->run.speed_sel[0])
+			phy_write(eng, 0, 0X4140);
+		else if (eng->run.speed_sel[1])
+			phy_write(eng, 0, 0x6100);
+		else
+			phy_write(eng, 0, 0x4100);
+	} else {
+		// Disable sleep bode
+		phy_write(eng, 0x1e, 0x27);
+		reg = phy_read(eng, 0x1f) | BIT(15);
+		phy_write(eng, 0x1F, reg);
+		// Enable External loopback
+		phy_write(eng, 0x1e, 0x0A);
+		reg = phy_read(eng, 0x1f) | BIT(4);
+		phy_write(eng, 0x1F, reg);
+
+		if (eng->run.speed_sel[0])
+			phy_write(eng, 0, 0x8140);
+		else if (eng->run.speed_sel[1])
+			phy_write(eng, 0, 0xA100);
+		else
+			phy_write(eng, 0, 0x8100);
+	}
+	DELAY(200);
+}
+
+void recov_phy_motor_comm(MAC_ENGINE *eng)
+{
+	uint32_t reg;
+
+	// Disable sleep bode
+	phy_write(eng, 0x1e, 0x27);
+	reg = phy_read(eng, 0x1f) | BIT(15);
+	phy_write(eng, 0x1F, reg);
+	// Disable External loopback
+	phy_write(eng, 0x1e, 0x0A);
+	reg = phy_read(eng, 0x1f) & ~BIT(4);
+	phy_write(eng, 0x1F, reg);
+
+	DELAY(200);
+}
+
+//------------------------------------------------------------
 void phy_default (MAC_ENGINE *eng) 
 {
 	nt_log_func_name();
@@ -2131,7 +2188,7 @@ void phy_default (MAC_ENGINE *eng)
 */
 uint32_t phy_find_addr(MAC_ENGINE *eng)
 {
-	uint32_t value;
+	uint32_t value, value2;
 	uint32_t ret = 0;
 	int8_t phy_addr_org;
 
@@ -2155,6 +2212,12 @@ uint32_t phy_find_addr(MAC_ENGINE *eng)
 	if (ret == 0) {
 		for (eng->phy.Adr = 0; eng->phy.Adr < 32; eng->phy.Adr++) {
 			value = phy_read(eng, PHY_REG_ID_1);
+			value2 = phy_read(eng, PHY_REG_ID_2);
+			// YT8521SH ID1 is zero, so need to check ID2
+			if (value == 0 && value2 == 0x11A) {
+				ret = 1;
+				break;
+			}
 			if (PHY_IS_VALID(value)) {
 				ret = 1;
 				break;

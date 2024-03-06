@@ -35,6 +35,8 @@ void recov_phy_vitesse(MAC_ENGINE *eng);
 void phy_vitesse(MAC_ENGINE *eng);
 void recov_phy_atheros(MAC_ENGINE *eng);
 void phy_atheros(MAC_ENGINE *eng);
+void phy_motor_comm(MAC_ENGINE *eng);
+void recov_phy_motor_comm(MAC_ENGINE *eng);
 void phy_default(MAC_ENGINE *eng);
 
 struct phy_desc {
@@ -45,7 +47,7 @@ struct phy_desc {
 	PHY_ENGINE cfg;
 };
 
-#define PHY_LOOKUP_N 35
+#define PHY_LOOKUP_N 37
 static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	{ .id1 = 0x001c,
 	  .id2 = 0xc916,
@@ -251,6 +253,18 @@ static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	  .name = "VSC8641",
 	  .cfg.fp_set = phy_vitesse,
 	  .cfg.fp_clr = recov_phy_vitesse },
+	{ .id1 = 0,
+	  .id2 = 0x011A,
+	  .id2_mask = 0xFFFF,
+	  .name = "YT8521SH",
+	  .cfg.fp_set = phy_motor_comm,
+	  .cfg.fp_clr = recov_phy_motor_comm },
+	{ .id1 = 0x4f51,
+	  .id2 = 0xE91A,
+	  .id2_mask = 0xFFF0,
+	  .name = "YT8531SH",
+	  .cfg.fp_set = phy_motor_comm,
+	  .cfg.fp_clr = recov_phy_motor_comm },
 	{ .id1 = 0x0000,
 	  .id2 = 0x0000,
 	  .id2_mask = 0x0000,
