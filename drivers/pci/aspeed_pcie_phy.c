@@ -70,9 +70,6 @@ static int aspeed_pcie_phy_probe(struct udevice *dev)
 		return ret;
 	}
 
-	//reset rc bridge
-	reset_assert(&reset_ctl);
-
 	rc_bridge->reg = devfdt_get_addr_ptr(dev);
 	if (IS_ERR(rc_bridge->reg))
 		return PTR_ERR(rc_bridge->reg);
