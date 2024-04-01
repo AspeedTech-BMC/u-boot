@@ -29,6 +29,7 @@
 #define SNOR_MFR_ISSI		0x9d
 #define SNOR_MFR_CYPRESS	0x34
 #define SNOR_MFR_XTX		0x0b
+#define SNOR_MFR_PY         0x85
 
 /*
  * Note on opcode nomenclature: some opcodes have a format like

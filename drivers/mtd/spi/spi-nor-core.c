@@ -411,6 +411,7 @@ static int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 	case SNOR_MFR_ISSI:
 	case SNOR_MFR_CYPRESS:
 	case SNOR_MFR_XTX:
+	case SNOR_MFR_PY:
 		if (need_wren)
 			write_enable(nor);
 
