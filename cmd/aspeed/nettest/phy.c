@@ -2173,6 +2173,110 @@ void recov_phy_motor_comm(MAC_ENGINE *eng)
 }
 
 //------------------------------------------------------------
+uint32_t read_ti(MAC_ENGINE *eng, uint32_t offset)
+{
+	phy_write(eng, 0xd, 0x1f);
+	phy_write(eng, 0xe, offset);
+	phy_write(eng, 0xd, 0x401f);
+	return phy_read(eng, 0xe);
+}
+
+void write_ti(MAC_ENGINE *eng, uint32_t offset, uint16_t data)
+{
+	phy_write(eng, 0xd, 0x1f);
+	phy_write(eng, 0xe, offset);
+	phy_write(eng, 0xd, 0x401f);
+	phy_write(eng, 0xe, data);
+}
+
+void phy_ti(MAC_ENGINE *eng)
+{
+	uint32_t reg;
+
+	if (eng->run.speed_sel[0])
+		phy_write(eng, 0, 0x0140);
+	else if (eng->run.speed_sel[1])
+		phy_write(eng, 0, 0x2100);
+	else
+		phy_write(eng, 0, 0x0100);
+
+	reg = phy_read(eng, 0x16) & ~GENMASK(5, 0);
+	if (eng->phy.loopback) {
+		/* Digital loopback */
+		reg |= BIT(2);
+		phy_write(eng, 0x16, reg);
+	} else {
+		phy_write(eng, 0x16, reg);
+	}
+
+	DELAY(500);
+}
+
+void phy_ti_dp83867(MAC_ENGINE *eng)
+{
+	uint32_t reg, reg_delay;
+
+	// TX/RX internal delay
+	reg = read_ti(eng, 0x32);
+	reg_delay = read_ti(eng, 0x86) & ~GENMASK(7, 0);
+	if (eng->arg.ctrl.b.phy_rx_delay_en) {
+		reg |= BIT(0);
+		// 2ns
+		reg_delay |= 0x7;
+	} else {
+		reg &= ~BIT(0);
+		// 0ns
+		reg_delay |= 0xF;
+	}
+	if (eng->arg.ctrl.b.phy_tx_delay_en) {
+		reg |= BIT(1);
+		reg_delay |= (0x7 << 4);
+	} else {
+		reg &= ~BIT(1);
+		reg_delay |= (0xF << 4);
+	}
+	write_ti(eng, 0x32, reg);
+	write_ti(eng, 0x86, reg_delay);
+
+	phy_ti(eng);
+}
+
+void phy_ti_dp83869(MAC_ENGINE *eng)
+{
+	uint32_t reg, reg_delay;
+
+	// TX/RX internal delay
+	reg = read_ti(eng, 0x32);
+	reg_delay = read_ti(eng, 0x86) & ~GENMASK(7, 0);
+	if (eng->arg.ctrl.b.phy_rx_delay_en) {
+		reg &= ~BIT(0);
+		reg_delay |= 0x7;
+	} else {
+		reg |= BIT(0);
+		reg_delay |= 0xF;
+	}
+	if (eng->arg.ctrl.b.phy_tx_delay_en) {
+		reg &= ~BIT(1);
+		reg_delay |= (0x7 << 4);
+	} else {
+		reg |= BIT(1);
+		reg_delay |= (0xF << 4);
+	}
+	write_ti(eng, 0x32, reg);
+	write_ti(eng, 0x86, reg_delay);
+
+	phy_ti(eng);
+}
+
+void recov_phy_ti(MAC_ENGINE *eng)
+{
+	uint32_t reg;
+
+	reg = phy_read(eng, 0x16) & ~GENMASK(5, 0);
+	phy_write(eng, 0x16, reg);
+}
+
+//------------------------------------------------------------
 void phy_default (MAC_ENGINE *eng) 
 {
 	nt_log_func_name();
