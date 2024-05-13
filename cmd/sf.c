@@ -266,6 +266,8 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	int ret = 1;
 	int dev = 0;
 	loff_t offset, len, maxsize;
+	ulong start_time;
+	ulong delta;
 
 	if (argc < 3)
 		return -1;
@@ -298,17 +300,25 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 		int read;
 
 		read = strncmp(argv[0], "read", 4) == 0;
+
+		start_time = get_timer(0);
 		if (read)
 			ret = spi_flash_read(flash, offset, len, buf);
 		else
 			ret = spi_flash_write(flash, offset, len, buf);
 
+		delta = get_timer(start_time);
+
 		printf("SF: %zu bytes @ %#x %s: ", (size_t)len, (u32)offset,
 		       read ? "Read" : "Written");
-		if (ret)
+		if (ret) {
 			printf("ERROR %d\n", ret);
-		else
+		} else {
 			printf("OK\n");
+			printf("%zu bytes transferred in %ld.%lds, speed %ld B/s\n",
+			       (size_t)len, delta / 1000, delta % 1000,
+			       bytes_per_second(len, start_time));
+		}
 	}
 
 	unmap_physmem(buf, len);
