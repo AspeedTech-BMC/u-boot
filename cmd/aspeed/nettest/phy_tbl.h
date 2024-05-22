@@ -50,7 +50,7 @@ struct phy_desc {
 	PHY_ENGINE cfg;
 };
 
-#define PHY_LOOKUP_N 39
+#define PHY_LOOKUP_N 40
 static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	{ .id1 = 0x001c,
 	  .id2 = 0xc916,
@@ -188,6 +188,12 @@ static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	  .id2 = 0x1152,
 	  .id2_mask = 0xffff,
 	  .name = "88E6320(IntLoop)",
+	  .cfg.fp_set = phy_marvell1,
+	  .cfg.fp_clr = recov_phy_marvell1 },
+	{ .id1 = 0xff00,
+	  .id2 = 0x3102,
+	  .id2_mask = 0xffff,
+	  .name = "88E6321(IntLoop)",
 	  .cfg.fp_set = phy_marvell1,
 	  .cfg.fp_clr = recov_phy_marvell1 },
 	{ .id1 = 0x0141,
