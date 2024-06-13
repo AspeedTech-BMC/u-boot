@@ -531,6 +531,9 @@ int phy_init(void)
 #ifdef CONFIG_PHY_NCSI
 	phy_ncsi_init();
 #endif
+#ifdef CONFIG_PHY_AIROHA_AN8801
+	phy_air_an8801_init();
+#endif
 	return 0;
 }
 

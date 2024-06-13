@@ -253,6 +253,7 @@ int phy_xilinx_init(void);
 int phy_mscc_init(void);
 int phy_fixed_init(void);
 int phy_ncsi_init(void);
+int phy_air_an8801_init(void);
 
 int board_phy_config(struct phy_device *phydev);
 int get_phy_id(struct mii_dev *bus, int addr, int devad, u32 *phy_id);
