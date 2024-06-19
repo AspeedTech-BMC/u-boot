@@ -2276,6 +2276,56 @@ void recov_phy_ti(MAC_ENGINE *eng)
 	phy_write(eng, 0x16, reg);
 }
 
+static void air_buckpbus_reg_write(MAC_ENGINE *eng, uint32_t addr, uint32_t data)
+{
+	phy_write(eng, 0x1F, 4);
+	phy_write(eng, 0x10, 0);
+	phy_write(eng, 0x11, (uint16_t)(addr >> 16));
+	phy_write(eng, 0x12, (uint16_t)(addr & 0xffff));
+	phy_write(eng, 0x13, (uint16_t)(data >> 16));
+	phy_write(eng, 0x14, (uint16_t)(data & 0xffff));
+	phy_write(eng, 0x1F, 0);
+}
+
+#define RGMII_RXDELAY_ALIGN         BIT(4)
+#define RGMII_RXDELAY_FORCE_MODE    BIT(24)
+#define RGMII_TXDELAY_FORCE_MODE    BIT(24)
+
+void phy_air_an8801(MAC_ENGINE *eng)
+{
+	uint32_t reg;
+
+	// TX/RX internal delay
+	reg = RGMII_TXDELAY_FORCE_MODE;
+	if (eng->arg.ctrl.b.phy_tx_delay_en)
+		reg |= 0x4;
+	air_buckpbus_reg_write(eng, 0x1021C024, reg);
+
+	reg = RGMII_RXDELAY_FORCE_MODE;
+	if (eng->arg.ctrl.b.phy_rx_delay_en)
+		reg |= RGMII_RXDELAY_ALIGN;
+	air_buckpbus_reg_write(eng, 0x1021C02C, reg);
+
+	if (eng->phy.loopback) {
+		if (eng->run.speed_sel[0])
+			phy_write(eng, 0, 0x4140);
+		else if (eng->run.speed_sel[1])
+			phy_write(eng, 0, 0x6100);
+		else
+			phy_write(eng, 0, 0x4100);
+	} else {
+		if (eng->run.speed_sel[0]) {
+			phy_write(eng, 0x09, 0x1a00);
+			phy_write(eng, 0x18, 0x1);
+			phy_write(eng, 0, 0x1200);
+		} else if (eng->run.speed_sel[1]) {
+			phy_write(eng, 0, 0x2100);
+		} else {
+			phy_write(eng, 0, 0x0100);
+		}
+	}
+}
+
 //------------------------------------------------------------
 void phy_default (MAC_ENGINE *eng) 
 {

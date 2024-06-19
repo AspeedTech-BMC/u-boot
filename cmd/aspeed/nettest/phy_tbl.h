@@ -40,6 +40,7 @@ void recov_phy_motor_comm(MAC_ENGINE *eng);
 void phy_ti_dp83867(MAC_ENGINE *eng);
 void phy_ti_dp83869(MAC_ENGINE *eng);
 void recov_phy_ti(MAC_ENGINE *eng);
+void phy_air_an8801(MAC_ENGINE *eng);
 void phy_default(MAC_ENGINE *eng);
 
 struct phy_desc {
@@ -50,7 +51,7 @@ struct phy_desc {
 	PHY_ENGINE cfg;
 };
 
-#define PHY_LOOKUP_N 40
+#define PHY_LOOKUP_N 41
 static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	{ .id1 = 0x001c,
 	  .id2 = 0xc916,
@@ -286,6 +287,12 @@ static const struct phy_desc phy_lookup_tbl[PHY_LOOKUP_N] = {
 	  .name = "TI DP83867",
 	  .cfg.fp_set = phy_ti_dp83867,
 	  .cfg.fp_clr = recov_phy_ti },
+	{ .id1 = 0xC0FF,
+	  .id2 = 0x0421,
+	  .id2_mask = 0xFFF0,
+	  .name = "Airoha AN8801R",
+	  .cfg.fp_set = phy_air_an8801,
+	  .cfg.fp_clr = NULL },
 	{ .id1 = 0x0000,
 	  .id2 = 0x0000,
 	  .id2_mask = 0x0000,
