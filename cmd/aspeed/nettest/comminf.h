@@ -81,6 +81,8 @@
 #define  SET_10MBPS                              BIT(2)
 #define  SET_1G_100M_10MBPS                      (SET_1GBPS | SET_100MBPS | SET_10MBPS)
 #define  SET_100M_10MBPS                         (SET_100MBPS | SET_10MBPS)
+#define  SET_1G_100MBPS		(SET_1GBPS | SET_100MBPS)
+#define  SET_1G_10MBPS		(SET_1GBPS | SET_10MBPS)
 
 #define  DEF_GSPEED                              SET_1G_100M_10MBPS
 #define  DEF_GARPNUMCNT                          0

@@ -652,7 +652,9 @@ static void calc_loop_check_num(MAC_ENGINE *p_eng)
 
 	if (p_eng->run.IO_MrgChk ||
 	    (p_eng->arg.run_speed == SET_1G_100M_10MBPS) ||
-	    (p_eng->arg.run_speed == SET_100M_10MBPS)) {
+	    (p_eng->arg.run_speed == SET_100M_10MBPS) ||
+	    (p_eng->arg.run_speed == SET_1G_100MBPS) ||
+	    (p_eng->arg.run_speed == SET_1G_10MBPS)) {
 		p_eng->run.LOOP_CheckNum = p_eng->run.loop_max;
 	} else {
 		switch (p_eng->arg.run_speed) {
@@ -770,6 +772,8 @@ static uint32_t setup_running(MAC_ENGINE *p_eng)
 				p_eng->arg.loop_max = DEF_GLOOP_MAX;
 				break;
 			case SET_1G_100M_10MBPS:
+			case SET_1G_100MBPS:
+			case SET_1G_10MBPS:
 				p_eng->arg.loop_max = DEF_GLOOP_MAX * 20;
 				break;
 			case SET_100M_10MBPS:
@@ -834,30 +838,17 @@ static uint32_t setup_running(MAC_ENGINE *p_eng)
 		else {
 			switch (p_eng->arg.run_speed) {
 			case SET_1GBPS:
-				p_eng->dat.Des_Num =
-				    p_eng->run.delay_margin
-					? 100
-					: (n_desp_min) ? 512 : 4096;
-				break;
 			case SET_100MBPS:
+			case SET_1G_100MBPS:
 				p_eng->dat.Des_Num =
 				    p_eng->run.delay_margin
 					? 100
 					: (n_desp_min) ? 512 : 4096;
 				break;
 			case SET_10MBPS:
-				p_eng->dat.Des_Num =
-				    p_eng->run.delay_margin
-					? 100
-					: (n_desp_min) ? 100 : 830;
-				break;
 			case SET_1G_100M_10MBPS:
-				p_eng->dat.Des_Num =
-				    p_eng->run.delay_margin
-					? 100
-					: (n_desp_min) ? 100 : 830;
-				break;
 			case SET_100M_10MBPS:
+			case SET_1G_10MBPS:
 				p_eng->dat.Des_Num =
 				    p_eng->run.delay_margin
 					? 100
@@ -1235,7 +1226,9 @@ uint32_t test_start(MAC_ENGINE *p_eng, PHY_ENGINE *p_phy_eng)
 		p_eng->run.timeout_th = get_time_out_th(p_eng);
 		if (p_eng->arg.run_mode == MODE_DEDICATED) {
 			if ((p_eng->arg.run_speed == SET_1G_100M_10MBPS) ||
-			    (p_eng->arg.run_speed == SET_100M_10MBPS)) {
+			    (p_eng->arg.run_speed == SET_100M_10MBPS) ||
+			    (p_eng->arg.run_speed == SET_1G_100MBPS) ||
+			    (p_eng->arg.run_speed == SET_1G_10MBPS)) {
 				if (p_eng->run.speed_sel[0])
 					p_eng->run.loop_max =
 					    p_eng->arg.loop_max;
