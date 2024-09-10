@@ -10,6 +10,7 @@
  */
 
 #include <common.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/log2.h>
@@ -298,7 +299,7 @@ static int write_winbond_sr2(struct spi_nor *nor, u8 val)
  */
 static int write_enable(struct spi_nor *nor)
 {
-	return nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0);
+	return nor->write_reg(nor, nor->wren_opcode, NULL, 0);
 }
 
 /*
@@ -2836,6 +2837,17 @@ static int spi_nor_init(struct spi_nor *nor)
 	return 0;
 }
 
+void spi_nor_pre_fixups(struct spi_nor *nor, const struct flash_info *info)
+{
+	if (JEDEC_MFR(info) == SNOR_MFR_WINBOND) {
+		if ((info->id[1] == 0x40 && info->id[2] == 0x21) ||
+		    (info->id[1] == 0x70 && info->id[2] == 0x21) ||
+		    (info->id[1] == 0x70 && info->id[2] == 0x22) ||
+		    (info->id[1] == 0x80 && info->id[2] == 0x22))
+			nor->wren_opcode = SPINOR_OP_VSR_WREN;
+	}
+}
+
 int spi_nor_scan(struct spi_nor *nor)
 {
 	struct spi_nor_flash_parameter params;
@@ -2859,6 +2871,7 @@ int spi_nor_scan(struct spi_nor *nor)
 	nor->write_reg = spi_nor_write_reg;
 	nor->flash_lock_by_host_ctrl = spi_nor_wlock_by_host_ctrl;
 	nor->flash_unlock_by_host_ctrl = spi_nor_wunlock_by_host_ctrl;
+	nor->wren_opcode = SPINOR_OP_WREN;
 
 	if (spi->mode & SPI_RX_QUAD) {
 		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
@@ -2877,6 +2890,9 @@ int spi_nor_scan(struct spi_nor *nor)
 	info = spi_nor_read_id(nor);
 	if (IS_ERR_OR_NULL(info))
 		return -ENOENT;
+
+	spi_nor_pre_fixups(nor, info);
+
 	/* Parse the Serial Flash Discoverable Parameters table. */
 	ret = spi_nor_init_params(nor, info, &params);
 	if (ret)
@@ -3002,6 +3018,8 @@ int spi_nor_scan(struct spi_nor *nor)
 
 	if (info->fixup)
 		info->fixup(nor);
+
+	nor->wren_opcode = SPINOR_OP_WREN;
 
 #ifndef CONFIG_SPL_BUILD
 	printf("SF: Detected %s with page size ", nor->name);

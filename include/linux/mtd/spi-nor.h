@@ -41,6 +41,7 @@
 
 /* Flash opcodes. */
 #define SPINOR_OP_WREN		0x06	/* Write enable */
+#define SPINOR_OP_VSR_WREN	0x50	/* Write enable for voatile register */
 #define SPINOR_OP_RDSR		0x05	/* Read status register */
 #define SPINOR_OP_WRSR		0x01	/* Write status register 1 byte */
 #define SPINOR_OP_RDSR2		0x3f	/* Read status register 2 */
@@ -353,6 +354,7 @@ struct spi_nor {
 	u32 size;
 	u32 sector_size;
 	u32 erase_size;
+	u8  wren_opcode;
 };
 
 static inline void spi_nor_set_flash_node(struct spi_nor *nor,
