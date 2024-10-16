@@ -343,3 +343,13 @@
 	u-boot,dm-pre-reloc;
 	status = "okay";
 };
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+};
+
+&sgpiom1 {
+	status = "okay";
+	ngpios = <80>;
+};

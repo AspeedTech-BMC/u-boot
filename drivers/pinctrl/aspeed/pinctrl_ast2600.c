@@ -401,6 +401,14 @@ static struct aspeed_sig_desc rxd4_link[] = {
 	{ 0x410, BIT(15), 0 },
 };
 
+static struct aspeed_sig_desc sgpm1[] = {
+	{0x414, GENMASK(27, 24), 0},
+};
+
+static struct aspeed_sig_desc sgpm2[] = {
+	{0x6d0, GENMASK(7, 4), 0},
+};
+
 static const struct aspeed_group_config ast2600_groups[] = {
 	{ "MAC1LINK", ARRAY_SIZE(mac1_link), mac1_link },
 	{ "MAC2LINK", ARRAY_SIZE(mac2_link), mac2_link },
@@ -478,6 +486,8 @@ static const struct aspeed_group_config ast2600_groups[] = {
 	{ "RXD3", ARRAY_SIZE(rxd3_link), rxd3_link },
 	{ "TXD4", ARRAY_SIZE(txd4_link), txd4_link },
 	{ "RXD4", ARRAY_SIZE(rxd4_link), rxd4_link },
+	{ "SGPM1", ARRAY_SIZE(sgpm1), sgpm1 },
+	{ "SGPM2", ARRAY_SIZE(sgpm2), sgpm2 },
 
 };
 
