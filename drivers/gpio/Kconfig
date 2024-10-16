@@ -83,6 +83,13 @@ config ASPEED_GPIO
 	help
 	  This driver supports the Aspeed GPIO controller
 
+config ASPEED_SGPIO
+	bool "Aspeed SGPIO Driver"
+	help
+	  Say yes here to support the Aspeed serial GPIO driver. The controller
+	  is found in the AST2400, AST2500 and AST2600 BMC SoCs and
+	  provides access to generate serial GPIO signal.
+
 config DA8XX_GPIO
 	bool "DA8xx GPIO Driver"
 	help
