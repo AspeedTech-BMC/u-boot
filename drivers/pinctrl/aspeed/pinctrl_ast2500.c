@@ -138,6 +138,10 @@ static struct aspeed_sig_desc usb2bh_link[] = {
 	{ 0x94, BIT(13), 1},
 };
 
+static struct aspeed_sig_desc sgpm_link[] = {
+	{ 0x84, GENMASK(11, 8), 0},
+};
+
 static const struct aspeed_group_config ast2500_groups[] = {
 	{ "MAC1LINK", 1, mac1_link },
 	{ "MAC2LINK", 1, mac2_link },
@@ -161,6 +165,7 @@ static const struct aspeed_group_config ast2500_groups[] = {
 	{ "SPI1CS1", 1, spi1cs1_link},
 	{ "USB2AH", 1, usb2ah_link },
 	{ "USB2BH", 2, usb2bh_link },
+	{ "SGPM", 1, sgpm_link },
 };
 
 static int ast2500_pinctrl_get_groups_count(struct udevice *dev)

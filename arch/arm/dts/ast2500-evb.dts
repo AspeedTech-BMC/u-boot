@@ -136,3 +136,8 @@
         status = "okay";
 
 };
+
+&sgpio {
+	status = "okay";
+	ngpios = <80>;
+};
