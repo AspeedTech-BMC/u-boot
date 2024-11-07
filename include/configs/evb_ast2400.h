@@ -8,6 +8,9 @@
 
 #include <configs/aspeed-common.h>
 
+#define CONFIG_HOSTNAME			"ast2400-evb"
+#define CONFIG_BOOTP_SEND_HOSTNAME
+
 #define CONFIG_SYS_MEMTEST_START	(CONFIG_SYS_SDRAM_BASE + 0x300000)
 #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x5000000)
 
