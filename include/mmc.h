@@ -526,6 +526,7 @@ enum bus_mode {
 	UHS_SDR104,
 	MMC_HS_200,
 	MMC_HS_400,
+	MMC_HS_400_ES,
 	MMC_MODES_END
 };
 

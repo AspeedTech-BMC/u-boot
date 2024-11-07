@@ -145,6 +145,14 @@
 #define SDHCI_ACMD12_ERR	0x3C
 
 #define SDHCI_HOST_CONTROL_2        0x3E
+#define  SDHCI_CTRL_UHS_MASK	0x0007
+#define  SDHCI_CTRL_UHS_SDR12	0x0000
+#define  SDHCI_CTRL_UHS_SDR25	0x0001
+#define  SDHCI_CTRL_UHS_SDR50	0x0002
+#define  SDHCI_CTRL_UHS_SDR104	0x0003
+#define  SDHCI_CTRL_UHS_DDR50	0x0004
+#define  SDHCI_CTRL_HS400	0x0005 /* Non-standard */
+#define  SDHCI_CTRL_VDD_180	0x0008
 #define SDHCI_DRIVER_STRENGTH_MASK  0x30
 #define SDHCI_DRIVER_STRENGTH_SHIFT 4
 
@@ -431,6 +439,16 @@ int add_sdhci(struct sdhci_host *host, u32 f_max, u32 f_min);
 #ifdef CONFIG_DM_MMC
 /* Export the operations to drivers */
 int sdhci_probe(struct udevice *dev);
+
+/**
+ * sdhci_set_control_reg - Set control registers
+ *
+ * This is used set up control registers for voltage level and UHS speed
+ * mode.
+ *
+ * @host: SDHCI host structure
+ */
+void sdhci_set_control_reg(struct sdhci_host *host);
 extern const struct dm_mmc_ops sdhci_ops;
 #else
 #endif
