@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Motorcomm YT8531S PHY driver.
+ * Motorcomm YT8521S/YT8531S PHY driver.
  *
  * Copyright (C) 2024 Motorcomm Technology Co., Ltd.
  */
@@ -22,7 +22,17 @@
 #define YTPHY_DTS_OUTPUT_CLK_125M		125000000
 
 #define YTPHY_SYNCE_CFG_REG			0xA012
+#define YT8521S_SCR_SYNCE_ENABLE		BIT(5)
 #define YT8531S_SCR_SYNCE_ENABLE		BIT(6)
+/* 1b0 output 25m clock   *default*
+ * 1b1 output 125m clock
+ */
+#define YT8521S_SCR_CLK_FRE_SEL_125M		BIT(3)
+#define YT8521S_SCR_CLK_SRC_MASK		GENMASK(2, 1)
+#define YT8521S_SCR_CLK_SRC_PLL_125M		0
+#define YT8521S_SCR_CLK_SRC_UTP_RX		1
+#define YT8521S_SCR_CLK_SRC_SDS_RX		2
+#define YT8521S_SCR_CLK_SRC_REF_25M		3
 /* 1b0 output 25m clock   *default*
  * 1b1 output 125m clock
  */
@@ -302,6 +312,79 @@ static int ytphy_parse_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int yt8521s_config(struct phy_device *phydev)
+{
+	struct ytphy_plat_priv *priv = phydev->priv;
+	u16 mask, val;
+	u16 reg_val;
+	int ret;
+
+	ret = genphy_config_aneg(phydev);
+	if (ret < 0)
+		return ret;
+
+	ytphy_dt_parse(phydev);
+	switch (priv->clk_out_frequency) {
+	case YTPHY_DTS_OUTPUT_CLK_DIS:
+		mask = YT8521S_SCR_SYNCE_ENABLE;
+		val = 0;
+		break;
+	case YTPHY_DTS_OUTPUT_CLK_25M:
+		mask = YT8521S_SCR_SYNCE_ENABLE | YT8521S_SCR_CLK_SRC_MASK |
+			   YT8521S_SCR_CLK_FRE_SEL_125M;
+		val = YT8521S_SCR_SYNCE_ENABLE |
+			  FIELD_PREP(YT8521S_SCR_CLK_SRC_MASK,
+				     YT8521S_SCR_CLK_SRC_REF_25M);
+		break;
+	case YTPHY_DTS_OUTPUT_CLK_125M:
+		mask = YT8521S_SCR_SYNCE_ENABLE | YT8521S_SCR_CLK_SRC_MASK |
+			   YT8521S_SCR_CLK_FRE_SEL_125M;
+		val = YT8521S_SCR_SYNCE_ENABLE | YT8521S_SCR_CLK_FRE_SEL_125M |
+			  FIELD_PREP(YT8521S_SCR_CLK_SRC_MASK,
+				     YT8521S_SCR_CLK_SRC_PLL_125M);
+		break;
+	default:
+		pr_warn("Freq err:%u\n", priv->clk_out_frequency);
+		return -EINVAL;
+	}
+
+	reg_val = ytphy_read_ext(phydev, YTPHY_SYNCE_CFG_REG);
+	reg_val &= ~mask;
+	reg_val |= val;
+	ret = ytphy_write_ext(phydev, YTPHY_SYNCE_CFG_REG, reg_val);
+	if (ret < 0)
+		return ret;
+
+	ret = ytphy_rgmii_clk_delay_config(phydev);
+	if (ret < 0)
+		return ret;
+
+	if (priv->flag & AUTO_SLEEP_DISABLED) {
+		/* disable auto sleep */
+		reg_val = ytphy_read_ext(phydev,
+					 YT8531S_EXTREG_SLEEP_CONTROL1_REG);
+		reg_val &= ~YT8531S_ESC1R_SLEEP_SW;
+		ret = ytphy_write_ext(phydev,
+				      YT8531S_EXTREG_SLEEP_CONTROL1_REG,
+				      reg_val);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (priv->flag & KEEP_PLL_ENABLED) {
+		/* enable RXC clock when no wire plug */
+		reg_val = ytphy_read_ext(phydev, YT8531S_CLOCK_GATING_REG);
+		reg_val &= ~YT8531S_CGR_RX_CLK_EN;
+		ret = ytphy_write_ext(phydev,
+				      YT8531S_CLOCK_GATING_REG,
+				      reg_val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int yt8531s_startup(struct phy_device *phydev)
 {
 	int ret;
@@ -403,6 +486,17 @@ static int yt8531s_probe(struct phy_device *phydev)
 	return 0;
 }
 
+static struct phy_driver motorcomm8521S = {
+	.name		= "YT8521S Gigabit Ethernet Transceiver",
+	.uid		= 0x0000011a,
+	.mask		= 0xffffffff,
+	.features	= PHY_GBIT_FEATURES,
+	.probe		= &yt8531s_probe,
+	.config		= &yt8521s_config,
+	.startup	= &yt8531s_startup,
+	.shutdown	= &genphy_shutdown,
+};
+
 static struct phy_driver motorcomm8531S = {
 	.name		= "YT8531S Gigabit Ethernet Transceiver",
 	.uid		= 0x4f51e91a,
@@ -416,6 +510,7 @@ static struct phy_driver motorcomm8531S = {
 
 int phy_yt_init(void)
 {
+	phy_register(&motorcomm8521S);
 	phy_register(&motorcomm8531S);
 
 	return 0;
