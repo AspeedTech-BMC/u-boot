@@ -171,6 +171,12 @@ config PHY_NATSEMI
 config PHY_REALTEK
 	bool "Realtek Ethernet PHYs support"
 
+config PHY_MOTORCOMM
+	tristate "Motorcomm PHYs"
+	help
+	  Enables support for Motorcomm network PHYs.
+	  Currently supports the YT85xx Gigabit Ethernet PHYs.
+
 config RTL8211E_PINE64_GIGABIT_FIX
 	bool "Fix gigabit throughput on some Pine64+ models"
 	depends on PHY_REALTEK

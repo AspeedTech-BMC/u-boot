@@ -108,6 +108,11 @@ F:	drivers/video/meson/
 F:	include/configs/meson64.h
 N:	meson
 
+MOTORCOMM PHY DRIVER
+M:	Frank Sae <Frank.Sae@motor-comm.com>
+S:	Maintained
+F:	drivers/net/phy/motorcomm.c
+
 ARM BROADCOM BCM283X
 M:	Matthias Brugger <mbrugger@suse.com>
 S:	Maintained
