@@ -17,7 +17,7 @@ struct soc_id {
 	u64 rev_id;
 };
 
-static struct soc_id soc_map_table[] = {	
+static struct soc_id soc_map_table[] = {
 	SOC_ID("AST2600-A0", 0x0500030305000303),
 	SOC_ID("AST2600-A1", 0x0501030305010303),
 	SOC_ID("AST2620-A1", 0x0501020305010203),
@@ -69,7 +69,7 @@ int aspeed_get_mac_phy_interface(u8 num)
 				return 0;
 			}
 			break;
-#ifdef ASPEED_HW_STRAP2			
+#ifdef ASPEED_HW_STRAP2
 		case 2:
 			if(strap2 & BIT(0)) {
 				return 1;
@@ -84,7 +84,7 @@ int aspeed_get_mac_phy_interface(u8 num)
 				return 0;
 			}
 			break;
-#endif			
+#endif
 	}
 	return -1;
 }
@@ -140,7 +140,7 @@ void aspeed_print_security_info(void)
 		printf("Mode_GCM\n");
 		return;
 	}
-}	
+}
 
 /*	ASPEED_SYS_RESET_CTRL	: System reset contrl/status register*/
 #define SYS_WDT8_SW_RESET	BIT(15)
@@ -233,36 +233,36 @@ void aspeed_print_sysrst_info(void)
 
 		if (rest & SYS_CM3_EXT_RESET) {
 			printf("RST: SYS_CM3_EXT_RESET \n");
-			writel(SYS_CM3_EXT_RESET, ASPEED_SYS_RESET_CTRL);		
+			writel(SYS_CM3_EXT_RESET, ASPEED_SYS_RESET_CTRL);
 		}
-		
+
 		if (rest & (SYS_PCI1_RESET | SYS_PCI2_RESET)) {
 			printf("PCI RST: ");
 			if (rest & SYS_PCI1_RESET) {
 				printf("#1 ");
-				writel(SYS_PCI1_RESET, ASPEED_SYS_RESET_CTRL);		
+				writel(SYS_PCI1_RESET, ASPEED_SYS_RESET_CTRL);
 			}
-			
+
 			if (rest & SYS_PCI2_RESET) {
 				printf("#2 ");
-				writel(SYS_PCI2_RESET, ASPEED_SYS_RESET_CTRL);		
+				writel(SYS_PCI2_RESET, ASPEED_SYS_RESET_CTRL);
 			}
 			printf("\n");
 		}
 
 		if (rest & SYS_DRAM_ECC_RESET) {
 			printf("RST: DRAM_ECC_RESET \n");
-			writel(SYS_FLASH_ABR_RESET, ASPEED_SYS_RESET_CTRL);		
+			writel(SYS_DRAM_ECC_RESET, ASPEED_SYS_RESET_CTRL);
 		}
 
 		if (rest & SYS_FLASH_ABR_RESET) {
 			printf("RST: SYS_FLASH_ABR_RESET \n");
-			writel(SYS_FLASH_ABR_RESET, ASPEED_SYS_RESET_CTRL);		
+			writel(SYS_FLASH_ABR_RESET, ASPEED_SYS_RESET_CTRL);
 		}
 		if (rest & SYS_EXT_RESET) {
 			printf("RST: External \n");
 			writel(SYS_EXT_RESET, ASPEED_SYS_RESET_CTRL);
-		}	
+		}
 	}
 }
 
