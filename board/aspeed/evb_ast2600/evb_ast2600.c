@@ -99,25 +99,6 @@ static void __maybe_unused espi_init(void)
 	 * If you are not sure what you are doing, DO NOT use it.
 	 */
 	reg = readl(ESPI_BASE + 0x000);
-	reg |= 0xef;
-	writel(reg, ESPI_BASE + 0x000);
-
-	writel(0x0, ESPI_BASE + 0x110);
-	writel(0x0, ESPI_BASE + 0x114);
-
-	reg = readl(ESPI_BASE + 0x00c);
-	reg |= 0x80000000;
-	writel(reg, ESPI_BASE + 0x00c);
-
-	writel(0xffffffff, ESPI_BASE + 0x094);
-	writel(0x1, ESPI_BASE + 0x100);
-	writel(0x1, ESPI_BASE + 0x120);
-
-	reg = readl(ESPI_BASE + 0x080);
-	reg |= 0x50;
-	writel(reg, ESPI_BASE + 0x080);
-
-	reg = readl(ESPI_BASE + 0x000);
 	reg |= 0x10;
 	writel(reg, ESPI_BASE + 0x000);
 }
