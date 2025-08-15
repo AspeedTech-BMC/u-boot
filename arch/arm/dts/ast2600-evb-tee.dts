@@ -55,7 +55,7 @@
 			no-map;
 		};
 
-		mctp1_reserved: mctp0_reserved@b1010000 {
+		mctp1_reserved: mctp1_reserved@b1010000 {
 			reg = <0xb1010000 0x10000>;
 			no-map;
 		};
@@ -221,7 +221,7 @@
 
 &emmc {
 	u-boot,dm-pre-reloc;
-	timing-phase = <0x000f0097>;
+	sdhci_hs200;
 };
 
 &emmc_slot0 {
@@ -231,30 +231,84 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_emmc_default>;
 	sdhci-drive-type = <1>;
+	max-frequency = <200000000>;
 };
 
 &sdhci {
-	timing-phase = <0x00c6375f>;
+	status = "okay";
+	sdhci_hs200;
+
+	vcc_sdio0: vcc-sdio0 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_sdio0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	vccq_sdio0: vccq-sdio0 {
+		status = "okay";
+		compatible = "regulator-gpio";
+		gpios = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
+		regulator-name = "vccq_sdio0";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	vcc_sdio1: vcc-sdio1 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_sdio1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	vccq_sdio1: vccq-sdio1 {
+		status = "okay";
+		compatible = "regulator-gpio";
+		gpios = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
+		regulator-name = "vccq_sdio1";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 };
 
 &sdhci_slot0 {
 	status = "okay";
 	bus-width = <4>;
-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&vcc_sdio0>;
+	vqmmc-supply = <&vccq_sdio0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sd1_default>;
-	sdhci-drive-type = <1>;
+	sdhci-drive-type = <3>;
+	max-frequency = <100000000>;
 };
 
 &sdhci_slot1 {
 	status = "okay";
 	bus-width = <4>;
-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&vcc_sdio1>;
+	vqmmc-supply = <&vccq_sdio1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sd2_default>;
-	sdhci-drive-type = <1>;
+	sdhci-drive-type = <3>;
+	max-frequency = <100000000>;
 };
 
 &i2c4 {
