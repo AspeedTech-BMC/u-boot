@@ -92,6 +92,9 @@ struct ftgmac100_data {
 	/* End of RX/TX ring buffer bits. Depend on model */
 	u32 rxdes0_edorr_mask;
 	u32 txdes0_edotr_mask;
+
+	u32 rgmii_tx_delay;
+	u32 rgmii_rx_delay;
 };
 
 /*
@@ -573,6 +576,11 @@ static int ftgmac100_ofdata_to_platdata(struct udevice *dev)
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
 	}
+
+	priv->rgmii_tx_delay = dev_read_u32_default(dev, "tx-internal-delay-ps",
+						    0);
+	priv->rgmii_rx_delay = dev_read_u32_default(dev, "rx-internal-delay-ps",
+						    0);
 
 	return clk_get_bulk(dev, &priv->clks);
 }
