@@ -1609,6 +1609,27 @@ static int write_sr_cr(struct spi_nor *nor, u8 *sr_cr)
 		return ret;
 	}
 
+#if defined(CONFIG_SPI_FLASH_WINBOND)
+	if (JEDEC_MFR(nor->info) == SNOR_MFR_WINBOND) {
+		write_enable(nor);
+
+		ret = nor->write_reg(nor, SPINOR_OP_WINBOND_WRSR2, &sr_cr[1], 1);
+		if (ret < 0) {
+			dev_dbg(nor->dev,
+				"error while writing configuration register\n");
+			return -EINVAL;
+		}
+
+		ret = spi_nor_wait_till_ready(nor);
+		if (ret) {
+			dev_dbg(nor->dev,
+				"timeout while writing configuration register\n");
+			return ret;
+		}
+
+		write_disable(nor);
+	}
+#endif
 	return 0;
 }
 
