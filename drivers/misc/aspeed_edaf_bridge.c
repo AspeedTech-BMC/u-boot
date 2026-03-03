@@ -25,6 +25,9 @@
 #define ESPI_CHN3_CTL			0x400
 #define   ESPI_CHN3_SW_READY		BIT(5)
 
+#define ESPI_CHN3_FILTER_CTL		0x500
+#define   ESPI_CHN3_FILTER_SAFS_SIZE	GENMASK(24, 16)
+
 #define EDAF_BDGE_CFG			0x0
 #define   EDAF_BDGE_CFG_CMD_EN		BIT(0)
 #define EDAF_BDGE_CBASE			0x20
@@ -246,6 +249,10 @@ static int aspeed_edaf_bridge_probe(struct udevice *dev)
 		espi = readl(espi_regs + ESPI_CHN3_CTL);
 		espi |= ESPI_CHN3_SW_READY;
 		writel(espi, espi_regs + ESPI_CHN3_CTL);
+
+		espi = readl(espi_regs + ESPI_CHN3_FILTER_CTL);
+		espi &= ~ESPI_CHN3_FILTER_SAFS_SIZE;
+		writel(espi, espi_regs + ESPI_CHN3_FILTER_CTL);
 	}
 
 	return 0;
