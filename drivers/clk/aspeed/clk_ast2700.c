@@ -296,14 +296,11 @@ static int ast2700_soc1_clk_enable(struct clk *clk)
 {
 	struct ast2700_clk_priv *priv = dev_get_priv(clk->dev);
 	struct ast2700_scu1 *scu = (struct ast2700_scu1 *)priv->reg;
-	u32 clkgate_bit;
 
 	if (clk->id > 32)
-		clkgate_bit = BIT(clk->id - 32);
+		writel(BIT(clk->id - 32), &scu->clkgate_clr2);
 	else
-		clkgate_bit = BIT(clk->id);
-
-	writel(clkgate_bit, &scu->clkgate_clr1);
+		writel(BIT(clk->id), &scu->clkgate_clr1);
 
 	return 0;
 }
