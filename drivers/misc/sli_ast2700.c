@@ -354,14 +354,10 @@ static int sli_calibrate_mbus_pad_delay(struct sli_data *data, int index, int be
 	int d;
 	int d_first_pass = -1;
 	int d_last_pass = -1;
-	int d_def = 12;
+	int d_def = (begin + end) / 2;
 	int count;
 	char *die_name = (is_k_rx) ? "IOD" : "CPUD";
 	uintptr_t kx = (is_k_rx) ? data->die1.slim : data->die0.slim;
-
-	if (data->die0.phy_clk_freq == SLI_PHYCLK_800M ||
-	    data->die0.phy_clk_freq == SLI_PHYCLK_788M)
-		d_def = 5;
 
 	for (count = 0; count < 50; count++) {
 		for (d = begin; d < end; d++) {
@@ -387,6 +383,8 @@ static int sli_calibrate_mbus_pad_delay(struct sli_data *data, int index, int be
 		if ((d_last_pass - d_first_pass) >= 3)
 			break;
 		debug("%s SLIM[%d] DS win: {%d, %d} retry %d\n", die_name, index, d_first_pass, d_last_pass, count);
+		d_first_pass = -1;
+		d_last_pass = -1;
 	}
 
 	if (d_first_pass == -1)
@@ -462,6 +460,8 @@ static void sli_calibrate_mbus_delay(struct sli_data *data, bool is_k_rx)
 		if ((d_last_pass - d_first_pass) >= 3)
 			break;
 		debug("%s SLIM DS retry %d\n", die_name, count);
+		d_first_pass = -1;
+		d_last_pass = -1;
 	}
 
 	dc = (d_first_pass + d_last_pass) >> 1;
