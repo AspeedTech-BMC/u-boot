@@ -71,6 +71,7 @@ enum otp_status {
 
 #define SOC_AST2700A0			8
 #define SOC_AST2700A1			9
+#define SOC_AST2700A2			10
 
 /* OTP memory address from 0x0~0x2000. (unit: Single Word 16-bits) */
 /* ----  0x0  -----
@@ -832,11 +833,11 @@ static void otp_strap_status(struct otpstrap_status *otpstrap)
 static int otp_print_rbp_info(void)
 {
 	const struct otprbp_info *rbp_info = info_cb.rbp_info;
-	u16 OTPRBP[21];
+	u16 OTPRBP[OTP_RBP_REGION_SIZE];
 	u32 w_offset;
 	u32 length;
 
-	for (int i = 0; i < 21; i++)
+	for (int i = 0; i < OTP_RBP_REGION_SIZE; i++)
 		otp_read_rbp(i, &OTPRBP[i]);
 
 	printf("W   bit-length            Description                       Value\n");
@@ -1774,6 +1775,8 @@ static int otp_prog_image(phys_addr_t addr, int nconfirm)
 		image_soc_ver = OTP_AST2700_A0;
 	} else if (otp_header->soc_ver == SOC_AST2700A1) {
 		image_soc_ver = OTP_AST2700_A1;
+	} else if (otp_header->soc_ver == SOC_AST2700A2) {
+		image_soc_ver = OTP_AST2700_A2;
 	} else {
 		printf("Image SOC Version is not supported\n");
 		return OTP_FAILURE;
@@ -2697,12 +2700,7 @@ static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 	ver = chip_version();
 	switch (ver) {
 	case OTP_AST2700_A0:
-		printf("Chip: AST2700-A0\n");
-		info_cb.version = OTP_AST2700_A0;
-		info_cb.strap_info = a0_strap_info;
-		info_cb.strap_info_len = ARRAY_SIZE(a0_strap_info);
-		info_cb.strap_ext_info = a0_strap_ext_info;
-		info_cb.strap_ext_info_len = ARRAY_SIZE(a0_strap_ext_info);
+		printf("Chip: AST2700-A0 is deprecated\n");
 		break;
 	case OTP_AST2700_A1:
 		printf("Chip: AST2700-A1\n");
@@ -2722,17 +2720,17 @@ static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 		break;
 	case OTP_AST2700_A2:
 		printf("Chip: AST2700-A2\n");
-		info_cb.version = OTP_AST2700_A1;
-		info_cb.rbp_info = a1_rbp_info;
-		info_cb.rbp_info_len = ARRAY_SIZE(a1_rbp_info);
-		info_cb.conf_info = a1_conf_info;
-		info_cb.conf_info_len = ARRAY_SIZE(a1_conf_info);
-		info_cb.strap_info = a1_strap_info;
-		info_cb.strap_info_len = ARRAY_SIZE(a1_strap_info);
-		info_cb.strap_ext_info = a1_strap_ext_info;
-		info_cb.strap_ext_info_len = ARRAY_SIZE(a1_strap_ext_info);
-		info_cb.cal_info = a1_cal_info;
-		info_cb.cal_info_len = ARRAY_SIZE(a1_cal_info);
+		info_cb.version = OTP_AST2700_A2;
+		info_cb.rbp_info = a2_rbp_info;
+		info_cb.rbp_info_len = ARRAY_SIZE(a2_rbp_info);
+		info_cb.conf_info = a2_conf_info;
+		info_cb.conf_info_len = ARRAY_SIZE(a2_conf_info);
+		info_cb.strap_info = a2_strap_info;
+		info_cb.strap_info_len = ARRAY_SIZE(a2_strap_info);
+		info_cb.strap_ext_info = a2_strap_ext_info;
+		info_cb.strap_ext_info_len = ARRAY_SIZE(a2_strap_ext_info);
+		info_cb.cal_info = a2_cal_info;
+		info_cb.cal_info_len = ARRAY_SIZE(a2_cal_info);
 		info_cb.key_info = a1_key_type;
 		info_cb.key_info_len = ARRAY_SIZE(a1_key_type);
 		break;
