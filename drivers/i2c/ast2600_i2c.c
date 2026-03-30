@@ -452,9 +452,8 @@ static int ast2600_i2c_probe(struct udevice *dev)
 
 	/* global reset */
 	if (reset) {
+		/* deassert the scu reset */
 		if (reset_status(&reset_ctl) > 0) {
-			reset_assert(&reset_ctl);
-			mdelay(10);
 			reset_deassert(&reset_ctl);
 		}
 
