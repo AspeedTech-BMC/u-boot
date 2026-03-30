@@ -45,7 +45,7 @@ static int ast2700_reset_status(struct reset_ctl *reset_ctl)
 	if (reset_ctl->id < 32)
 		status = BIT(reset_ctl->id) & readl(priv->base);
 	else
-		status = BIT(reset_ctl->id - 32) & readl(priv->base);
+		status = BIT(reset_ctl->id - 32) & readl(priv->base + 0x20);
 
 	return !!status;
 }
