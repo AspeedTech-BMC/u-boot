@@ -125,7 +125,7 @@
 		ranges;
 
 		vhuba0: usb-vhub@12060000 {
-			compatible = "aspeed,ast2700-usb-vhuba0";
+			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0 0x12060000 0 0x350>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk SCU0_CLK_GATE_PORTAUSB2CLK>;
@@ -136,7 +136,7 @@
 		};
 
 		vhubb0: usb-vhub@12062000 {
-			compatible = "aspeed,ast2700-usb-vhubb0";
+			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12062000 0x0 0x350>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk SCU0_CLK_GATE_PORTBUSB2CLK>;
@@ -592,7 +592,7 @@
 		};
 
 		vhubc: usb-vhub@14120000 {
-			compatible = "aspeed,ast2700-usb-vhubc";
+			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x14120000 0x0 0x350>;
 			clocks = <&soc1_clk SCU1_CLK_GATE_PORTCUSB2CLK>;
 			resets = <&soc1_rst SCU1_RESET_PORTC_VHUB_EHCI>;
@@ -602,7 +602,7 @@
 		};
 
 		vhubd: usb-vhub@14122000 {
-			compatible = "aspeed,ast2700-usb-vhubd";
+			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x14122000 0x0 0x350>;
 			clocks = <&soc1_clk SCU1_CLK_GATE_PORTDUSB2CLK>;
 			resets = <&soc1_rst SCU1_RESET_PORTD_VHUB_EHCI>;

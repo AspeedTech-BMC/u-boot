@@ -945,10 +945,10 @@ static void aspeed_udc_isr(struct aspeed_udc_priv *udc)
 
 	spin_lock_irqsave(&udc->lock, flags);
 	isr = readl(base + AST_VHUB_ISR);
-	writel(isr, base + AST_VHUB_ISR);
 	isr &= 0x3ffff;
 	if (!isr)
 		return;
+	writel(isr, base + AST_VHUB_ISR);
 	UDC_DBG("%s: isr: 0x%x\n", __func__, isr);
 	ret = readl_poll_timeout(base + AST_VHUB_ISR, val,
 				 (((val & ISR_EP0_SETUP_IN_OUT) & isr) == 0x0),
@@ -958,51 +958,42 @@ static void aspeed_udc_isr(struct aspeed_udc_priv *udc)
 
 	if (isr & ISR_BUS_RESET) {
 		UDC_DBG("ISR_BUS_RESET\n");
-		writel(ISR_BUS_RESET, base + AST_VHUB_ISR);
 	}
 
 	if (isr & ISR_BUS_SUSPEND) {
 		UDC_DBG("ISR_BUS_SUSPEND\n");
-		writel(ISR_BUS_SUSPEND, base + AST_VHUB_ISR);
 	}
 
 	if (isr & ISR_SUSPEND_RESUME) {
 		UDC_DBG("ISR_SUSPEND_RESUME\n");
-		writel(ISR_SUSPEND_RESUME, base + AST_VHUB_ISR);
 	}
 
 	if (isr & ISR_HUB_EP0_IN_ACK_STALL) {
 		UDC_DBG("ISR_HUB_EP0_IN_ACK_STALL\n");
-		writel(ISR_HUB_EP0_IN_ACK_STALL, base + AST_VHUB_ISR);
 		aspeed_udc_ep0_in(udc);
 	}
 
 	if (isr & ISR_HUB_EP0_OUT_ACK_STALL) {
 		UDC_DBG("ISR_HUB_EP0_OUT_ACK_STALL\n");
-		writel(ISR_HUB_EP0_OUT_ACK_STALL, base + AST_VHUB_ISR);
 		aspeed_udc_ep0_out(udc);
 	}
 
 	if (isr & ISR_HUB_EP0_OUT_NAK) {
 		UDC_DBG("ISR_HUB_EP0_OUT_NAK\n");
-		writel(ISR_HUB_EP0_OUT_NAK, base + AST_VHUB_ISR);
 	}
 
 	if (isr & ISR_HUB_EP0_IN_DATA_NAK) {
 		UDC_DBG("ISR_HUB_EP0_IN_DATA_NAK\n");
-		writel(ISR_HUB_EP0_IN_DATA_NAK, base + AST_VHUB_ISR);
 	}
 
 	if (isr & ISR_HUB_EP0_SETUP) {
 		UDC_DBG("SETUP\n");
-		writel(ISR_HUB_EP0_SETUP, base + AST_VHUB_ISR);
 		aspeed_udc_setup_handle(udc);
 	}
 
 	if (isr & ISR_HUB_EP1_IN_DATA_ACK) {
 		// HUB Bitmap control
 		dev_err(udc->dev, "Error: EP1 IN ACK\n");
-		writel(ISR_HUB_EP1_IN_DATA_ACK, base + AST_VHUB_ISR);
 		writel(0x00, base + AST_VHUB_EP1_STS_CHG);
 	}
 
@@ -1023,7 +1014,6 @@ static void aspeed_udc_isr(struct aspeed_udc_priv *udc)
 
 	if (isr & ISR_EP_NAK) {
 		UDC_DBG("ISR_EP_NAK\n");
-		writel(ISR_EP_NAK, base + AST_VHUB_ISR);
 	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1169,6 +1159,8 @@ static int udc_init(struct aspeed_udc_priv *udc)
 
 	writel(ROOT_PHY_CLK_EN | ROOT_PHY_RESET_DIS, base + AST_VHUB_CTRL);
 
+	writel(1, base + AST_VHUB_DEV_RESET);
+	udelay(1);
 	writel(0, base + AST_VHUB_DEV_RESET);
 
 	val = ~(u32)BIT(18);
@@ -1211,6 +1203,8 @@ static int aspeed_udc_probe(struct udevice *dev)
 	// Wait 10ms for PLL locking
 	mdelay(10);
 	reset_deassert(&udc->reset);
+	// HW requires ~1us delay after reset release before register access works.
+	udelay(1);
 
 	udc->init = 1;
 	ret = udc_init(udc);
@@ -1304,10 +1298,7 @@ static int aspeed_udc_remove(struct udevice *dev)
 }
 
 static const struct udevice_id aspeed_udc_ids[] = {
-	{ .compatible = "aspeed,ast2700-usb-vhuba0" },
-	{ .compatible = "aspeed,ast2700-usb-vhubb0" },
-	{ .compatible = "aspeed,ast2700-usb-vhubc" },
-	{ .compatible = "aspeed,ast2700-usb-vhubd" },
+	{ .compatible = "aspeed,ast2700-usb-vhub" },
 	{ }
 };
 
