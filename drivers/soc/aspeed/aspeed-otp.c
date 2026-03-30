@@ -376,34 +376,6 @@ static int aspeed_otp_ecc_init(struct udevice *dev)
 	return 0;
 }
 
-static void aspeed_otp_rom_info(void)
-{
-	int rom_patch_ver;
-	char *rom_ver_str;
-
-	/* Check ROM patch version */
-	rom_patch_ver = readl((void *)SCU1_ROM_PATCH_ADDR);
-	switch (rom_patch_ver) {
-	case OTP_ROM_PATCH_NONE:
-		rom_ver_str = "None";
-		break;
-	case OTP_ROM_PATCH_V1:
-		rom_ver_str = "v1";
-		break;
-	case OTP_ROM_PATCH_V2:
-		rom_ver_str = "v2";
-		break;
-	case OTP_ROM_PATCH_V3:
-		rom_ver_str = "v3";
-		break;
-	default:
-		rom_ver_str = "Unknown";
-		break;
-	}
-
-	printf("OTP:   ROM patch: %s\n", rom_ver_str);
-}
-
 static int aspeed_otp_probe(struct udevice *dev)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
@@ -419,8 +391,6 @@ static int aspeed_otp_probe(struct udevice *dev)
 		debug("OTP ECC init failed, rc:%d\n", rc);
 		return rc;
 	}
-
-	aspeed_otp_rom_info();
 
 	return rc;
 }
