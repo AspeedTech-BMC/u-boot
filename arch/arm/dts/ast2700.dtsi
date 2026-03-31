@@ -1381,8 +1381,8 @@
 	};
 
 	pinctrl_spi2_quad_default: spi2_quad_default {
-		function = "SPI1QUAD";
-		groups = "SPI1QUAD";
+		function = "SPI2QUAD";
+		groups = "SPI2QUAD";
 	};
 
 	pinctrl_sdio_default: sdio_default {
