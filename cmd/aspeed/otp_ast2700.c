@@ -2731,8 +2731,8 @@ static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 		info_cb.strap_ext_info_len = ARRAY_SIZE(a2_strap_ext_info);
 		info_cb.cal_info = a2_cal_info;
 		info_cb.cal_info_len = ARRAY_SIZE(a2_cal_info);
-		info_cb.key_info = a1_key_type;
-		info_cb.key_info_len = ARRAY_SIZE(a1_key_type);
+		info_cb.key_info = a2_key_type;
+		info_cb.key_info_len = ARRAY_SIZE(a2_key_type);
 		break;
 	default:
 		printf("SOC is not supported\n");
