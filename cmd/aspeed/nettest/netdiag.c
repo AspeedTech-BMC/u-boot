@@ -381,6 +381,8 @@ int netdiag_parse_parameter_from_argv(int argc, char *const argv[], struct param
 				parm->interface = PHY_INTERFACE_MODE_RGMII_TXID;
 			else if (IS_INTERFACE_ARG_RGMII_ID(optarg))
 				parm->interface = PHY_INTERFACE_MODE_RGMII_ID;
+			else if (IS_INTERFACE_ARG_RGMII(optarg))
+				parm->interface = PHY_INTERFACE_MODE_RGMII;
 			else if (IS_INTERFACE_ARG_SGMII(optarg))
 				parm->interface = PHY_INTERFACE_MODE_SGMII;
 			break;
