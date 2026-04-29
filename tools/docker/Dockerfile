@@ -93,6 +93,7 @@ RUN apt-get update && apt-get install -y \
 	openssl \
 	picocom \
 	parted \
+	pkcs11-provider \
 	pkg-config \
 	python-is-python3 \
 	python2.7 \
