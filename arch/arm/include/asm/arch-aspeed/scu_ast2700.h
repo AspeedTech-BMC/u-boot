@@ -508,6 +508,161 @@ struct ast2700_scu1 {
 	uint32_t io_driving8;	/* 0x4e0 */
 };
 
+struct ast2705_scu1 {
+	uint32_t chip_id1;		/* 0x000 */
+	uint32_t rsv_0x04[3];		/* 0x004 ~ 0x00C */
+	uint32_t hwstrap1;		/* 0x010 */
+	uint32_t hwstrap1_clr;		/* 0x014 */
+	uint32_t rsv_0x18[2];		/* 0x018 ~ 0x01C */
+	uint32_t hwstrap1_lock;		/* 0x020 */
+	uint32_t hwstrap1_sec1;		/* 0x024 */
+	uint32_t hwstrap1_sec2;		/* 0x028 */
+	uint32_t hwstrap1_sec3;		/* 0x02C */
+	uint32_t hwstrap2;		/* 0x030 */
+	uint32_t hwstrap2_clr;		/* 0x034 */
+	uint32_t rsv_0x38[2];		/* 0x038 ~ 0x03C */
+	uint32_t hwstrap2_lock;		/* 0x040 */
+	uint32_t hwstrap2_sec1;		/* 0x044 */
+	uint32_t hwstrap2_sec2;		/* 0x048 */
+	uint32_t hwstrap2_sec3;		/* 0x04C */
+	uint32_t sysrest_log1;		/* 0x050 */
+	uint32_t sysrest_log1_sec1;	/* 0x054 */
+	uint32_t sysrest_log1_sec2;	/* 0x058 */
+	uint32_t sysrest_log1_sec3;	/* 0x05C */
+	uint32_t sysrest_log2;		/* 0x060 */
+	uint32_t sysrest_log2_sec1;	/* 0x064 */
+	uint32_t sysrest_log2_sec2;	/* 0x068 */
+	uint32_t sysrest_log2_sec3;	/* 0x06C */
+	uint32_t sysrest_log3;		/* 0x070 */
+	uint32_t sysrest_log3_sec1;	/* 0x074 */
+	uint32_t sysrest_log3_sec2;	/* 0x078 */
+	uint32_t sysrest_log3_sec3;	/* 0x07C */
+	uint32_t sysrest_log4;		/* 0x080 */
+	uint32_t sysrest_log4_sec1;	/* 0x084 */
+	uint32_t sysrest_log4_sec2;	/* 0x088 */
+	uint32_t sysrest_log4_sec3;	/* 0x08C */
+	uint32_t rsv_0x90[7];		/* 0x090 ~ 0xA8 */
+	uint32_t uart_dbg_rate;		/* 0x0AC */
+	uint32_t rsv_0xB0[4];		/* 0x0B0 ~ 0xBC*/
+	uint32_t misc;			/* 0x0C0 */
+	uint32_t rsv_0xC4;		/* 0x0C4 */
+	uint32_t debug_ctrl;		/* 0x0C8 */
+	uint32_t rsv_0xCC;		/* 0x0CC */
+	uint32_t dac_ctrl;		/* 0x0D0 */
+	uint32_t dac_crc_ctrl;		/* 0x0D4 */
+	uint32_t rsv_0xD8[2];		/* 0x0D8 ~ 0x0DC */
+	uint32_t video_input_ctrl;	/* 0x0E0 */
+	uint32_t rsv_0xE4[3];		/* 0x0E4 ~ 0x0EC */
+	uint32_t random_num_ctrl;	/* 0x0F0 */
+	uint32_t random_num_data;	/* 0x0F4 */
+	uint32_t rsv_0xF0[2];		/* 0x0F8 ~ 0x0FC */
+	uint32_t rsv_0x100[32];		/* 0x100 ~ 0x17C */
+	uint32_t scratch[32];		/* 0x180 ~ 0x1FC */
+	uint32_t modrst1_ctrl;		/* 0x200 */
+	uint32_t modrst1_clr;		/* 0x204 */
+	uint32_t modrst_lock1;		/* 0x208 */
+	uint32_t modrst1_sec1;		/* 0x20C */
+	uint32_t modrst1_sec2;		/* 0x210 */
+	uint32_t modrst1_sec3;		/* 0x214 */
+	uint32_t modrst2_ctrl;		/* 0x218 */
+	uint32_t modrst2_clr;		/* 0x21C */
+	uint32_t modrst2_lock;		/* 0x220 */
+	uint32_t modrst2_prot1;		/* 0x224 */
+	uint32_t modrst2_prot2;		/* 0x228 */
+	uint32_t modrst2_prot3;		/* 0x22C */
+	uint32_t modrst3_ctrl;		/* 0x230 */
+	uint32_t modrst3_clr;		/* 0x234 */
+	uint32_t modrst3_lock;		/* 0x238 */
+	uint32_t modrst3_prot1;		/* 0x23C */
+	uint32_t modrst3_prot2;		/* 0x240 */
+	uint32_t modrst3_prot3;		/* 0x244 */
+	uint32_t clkgate_ctrl1;		/* 0x248 */
+	uint32_t clkgate_clr1;		/* 0x24C */
+	uint32_t clkgate_lock1;		/* 0x250 */
+	uint32_t clkgate_secure11;	/* 0x254 */
+	uint32_t clkgate_secure12;	/* 0x258 */
+	uint32_t clkgate_secure13;	/* 0x25C */
+	uint32_t clkgate_ctrl2;		/* 0x260 */
+	uint32_t clkgate_clr2;		/* 0x264 */
+	uint32_t rsv_0x268[2];		/* 0x268 ~ 0x26C */
+	uint32_t clkgate_lock2;		/* 0x270 */
+	uint32_t clkgate_secure21;	/* 0x274 */
+	uint32_t clkgate_secure22;	/* 0x278 */
+	uint32_t clkgate_secure23;	/* 0x27C */
+	uint32_t clk_sel1;		/* 0x280 */
+	uint32_t clk_sel2;		/* 0x284 */
+	uint32_t rsv_0x288[6];		/* 0x288 ~ 0x29C */
+	uint32_t clk_sel1_lock;		/* 0x2A0 */
+	uint32_t clk_sel1_secure1;	/* 0x2A4 */
+	uint32_t clk_sel1_secure2;	/* 0x2A8 */
+	uint32_t clk_sel1_secure3;	/* 0x2AC */
+	uint32_t clk_sel2_lock;		/* 0x2B0 */
+	uint32_t clk_sel2_secure1;	/* 0x2B4 */
+	uint32_t clk_sel2_secure2;	/* 0x2B8 */
+	uint32_t clk_sel2_secure3;	/* 0x2BC */
+	uint32_t rsv_0x2C0[48];		/* 0x2C0 ~ 0x2DC */
+	uint32_t extrst_sel1;		/* 0x2F0 */
+	uint32_t extrst_sel2;		/* 0x2F4 */
+	uint32_t extrst_sel3;		/* 0x2F8 */
+	uint32_t rsv_0x2FC;		/* 0x2FC */
+	uint32_t hpll;			/* 0x300 */
+	uint32_t hpll_ext;		/* 0x304 */
+	uint32_t rsv_0x308[2];		/* 0x308 ~ 0x30C */
+	uint32_t apll;			/* 0x310 */
+	uint32_t apll_ext;		/* 0x314 */
+	uint32_t rsv_0x318[2];		/* 0x318 ~ 0x31C */
+	uint32_t dpll;			/* 0x320 */
+	uint32_t dpll_ext;		/* 0x324 */
+	uint32_t rsv_0x328[2];		/* 0x328 ~ 0x32C */
+	uint32_t uxclk_ctrl;		/* 0x330 */
+	uint32_t huxclk_ctrl;		/* 0x334 */
+	uint32_t rsv_0x338[18];		/* 0x338 ~ 0x37C */
+	uint32_t clkduty_meas_ctrl;	/* 0x380 */
+	uint32_t clkduty1;		/* 0x384 */
+	uint32_t clkduty2;		/* 0x388 */
+	uint32_t rsv_0x38c[5];		/* 0x38C ~ 0x39C */
+	uint32_t freq_counter_ctrl;	/* 0x3A0 */
+	uint32_t freq_counter_cmp;	/* 0x3A4 */
+	uint32_t rsv_0x3a8[2];		/* 0x3A8 ~ 0x3AC */
+	uint32_t usb_ctrl;		/* 0x3B0 */
+	uint32_t usb_lock;		/* 0x3B4 */
+	uint32_t usb_secure1;		/* 0x3b8 */
+	uint32_t usb_secure2;		/* 0x3BC */
+	uint32_t usb_secure3;		/* 0x3C0 */
+	uint32_t rsv_0x3c4[15];		/* 0x3C4 ~ 0x3FC */
+	uint32_t pinumx1;		/* 0x400 */
+	uint32_t pinumx2;		/* 0x404 */
+	uint32_t pinumx3;		/* 0x408 */
+	uint32_t pinumx4;		/* 0x40C */
+	uint32_t pinumx5;		/* 0x410 */
+	uint32_t pinumx6;		/* 0x414 */
+	uint32_t pinumx7;		/* 0x418 */
+	uint32_t pinumx8;		/* 0x41C */
+	uint32_t pinumx9;		/* 0x420 */
+	uint32_t pinumx10;		/* 0x424 */
+	uint32_t pinumx11;		/* 0x428 */
+	uint32_t pinumx12;		/* 0x42C */
+	uint32_t pinumx13;		/* 0x430 */
+	uint32_t pinumx14;		/* 0x434 */
+	uint32_t pinumx15;		/* 0x438 */
+	uint32_t pinumx16;		/* 0x43C */
+	uint32_t pinumx17;		/* 0x440 */
+	uint32_t pinumx18;		/* 0x444 */
+	uint32_t pinumx19;		/* 0x448 */
+	uint32_t pinumx20;		/* 0x44C */
+	uint32_t pinumx21;		/* 0x450 */
+	uint32_t pinumx22;		/* 0x454 */
+	uint32_t pinumx23;		/* 0x458 */
+	uint32_t pinumx24;		/* 0x45C */
+	uint32_t pinumx25;		/* 0x460 */
+	uint32_t pinumx26;		/* 0x464 */
+	uint32_t pinumx27;		/* 0x468 */
+	uint32_t pinumx31;		/* 0x46C */
+	uint32_t pull_down_dis7;	/* 0x470 */
+	uint32_t sli_pin_conf;		/* 0x474 */
+	uint32_t pin_conf;		/* 0x478 */
+};
+
 void aspeed_print_2nd_wdt_mode(void);
 void aspeed_print_fmc_aux_ctrl(void);
 void aspeed_print_spi_misc_func(void);

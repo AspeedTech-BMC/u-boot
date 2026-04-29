@@ -305,9 +305,27 @@ static int ast2700_soc1_clk_enable(struct clk *clk)
 	return 0;
 }
 
+static int ast2705_soc1_clk_enable(struct clk *clk)
+{
+	struct ast2700_clk_priv *priv = dev_get_priv(clk->dev);
+	struct ast2705_scu1 *scu = (struct ast2705_scu1 *)priv->reg;
+
+	if (clk->id > 32)
+		writel(BIT(clk->id - 32), &scu->clkgate_clr2);
+	else
+		writel(BIT(clk->id), &scu->clkgate_clr1);
+
+	return 0;
+}
+
 struct clk_ops ast2700_soc1_clk_ops = {
 	.get_rate = ast2700_soc1_clk_get_rate,
 	.enable = ast2700_soc1_clk_enable,
+};
+
+struct clk_ops ast2705_soc1_clk_ops = {
+	.get_rate = ast2700_soc1_clk_get_rate,
+	.enable = ast2705_soc1_clk_enable,
 };
 
 #define SCU_HW_REVISION_ID		GENMASK(23, 16)
@@ -928,6 +946,21 @@ U_BOOT_DRIVER(aspeed_ast2700_soc1_clk) = {
 	.of_match = ast2700_soc1_clk_ids,
 	.priv_auto = sizeof(struct ast2700_clk_priv),
 	.ops = &ast2700_soc1_clk_ops,
+	.probe = ast2700_clk_probe,
+	.bind = ast2700_clk_bind,
+};
+
+static const struct udevice_id ast2705_soc1_clk_ids[] = {
+	{ .compatible = "aspeed,ast2705-soc1-clk", .data = (ulong)&ast2700_clk1_init },
+	{ },
+};
+
+U_BOOT_DRIVER(aspeed_ast2705_soc1_clk) = {
+	.name = "aspeed_ast2705_soc1_clk",
+	.id = UCLASS_CLK,
+	.of_match = ast2705_soc1_clk_ids,
+	.priv_auto = sizeof(struct ast2700_clk_priv),
+	.ops = &ast2705_soc1_clk_ops,
 	.probe = ast2700_clk_probe,
 	.bind = ast2700_clk_bind,
 };
