@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0+
+#include "ast2700.dtsi"
+
+/ {
+	soc1: soc@14000000 {
+		syscon1: syscon@14c02000 {
+			compatible = "aspeed,ast2705-scu1", "syscon", "simple-mfd";
+			reg = <0x0 0x14c02000 0x0 0x1000>;
+			ranges = <0 0 0 0x14c02000 0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			soc1_rst: reset-controller@14c02200 {
+				compatible = "aspeed,ast2705-reset";
+				reg = <0 0x200 0 0x40>;
+				#reset-cells = <1>;
+			};
+
+			soc1_clk: clock-controller@14c02200 {
+				compatible = "aspeed,ast2705-soc1-clk";
+				reg = <0 0x240 0 0x1c0>;
+				#clock-cells = <1>;
+			};
+
+			pinctrl1: pinctrl@14c02400 {
+				compatible = "aspeed,ast2700-soc1-pinctrl";
+				reg = <0 0x400 0 0x100>;
+			};
+		};
+	};
+};
