@@ -64,6 +64,9 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define MAC_RXDES2_RXBUF_BADR_HI GENMASK(18, 16)
 
+#define MAC_TX_POLL_INTERVAL_US	10
+#define MAC_TX_TIMEOUT_US	10000
+
 #define TX_DELAY_1 GENMASK(5, 0)
 #define TX_DELAY_2 GENMASK(11, 6)
 #define RX_DELAY_1 GENMASK(17, 12)
@@ -417,10 +420,18 @@ static void record_rgmii_delay(u32 index, u8 tx_dis, u8 tx_en, u8 rx_dis, u8 rx_
 	}
 }
 
-static void mac_xmit(u32 index)
+static u32 mac_read_tx_desc0(dma_addr_t des_start, dma_addr_t des_end)
+{
+	invalidate_dcache_range(des_start, des_end);
+
+	return txdes.des0;
+}
+
+static int mac_xmit(u32 index)
 {
 	dma_addr_t des_start, des_end;
 	void *base;
+	u32 des0;
 
 	if (index)
 		base = (void *)ASPEED_IO_MAC1_BASE;
@@ -431,9 +442,11 @@ static void mac_xmit(u32 index)
 
 	des_start = (dma_addr_t)&txdes;
 	des_end = des_start + sizeof(txdes);
-	do {
-		invalidate_dcache_range(des_start, des_end);
-	} while (txdes.des0 & MAC_TXDES0_TXDMA_OWN);
+
+	return read_poll_timeout(mac_read_tx_desc0, des0,
+				 !(des0 & MAC_TXDES0_TXDMA_OWN),
+				 MAC_TX_POLL_INTERVAL_US, MAC_TX_TIMEOUT_US,
+				 des_start, des_end);
 }
 
 static int mac_recv_no_data(void)
@@ -457,9 +470,14 @@ static int mac_recv_no_data(void)
 
 static int packet_check(u32 index)
 {
+	int ret;
+
 	mac_init_rx_desc_only_desc0();
 	mac_init_tx_desc_only_desc0();
-	mac_xmit(index);
+	ret = mac_xmit(index);
+	if (ret)
+		return -1;
+
 	return mac_recv_no_data();
 }
 
