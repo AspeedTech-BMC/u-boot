@@ -75,6 +75,10 @@
 	tx-internal-delay-ps = <0>;
 };
 
+&xgmac {
+	status = "okay";
+};
+
 &fmc {
 	status = "okay";
 	pinctrl-names = "default";
