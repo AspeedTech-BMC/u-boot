@@ -93,7 +93,7 @@ config RESET_AST2600
 config RESET_AST2700
 	bool "Reset controller driver for AST2700 SoCs"
 	depends on DM_RESET
-	default y if ASPEED_AST2700
+	default y if ASPEED_AST2700 || ASPEED_AST2705
 	help
 	  Support for reset controller on AST2700 SoC.
 	  Say Y if you want to control reset signals of different peripherals
