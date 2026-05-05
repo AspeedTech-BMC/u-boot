@@ -48,6 +48,17 @@
 #include <linux/kernel.h>
 #include "dwc_eth_xgmac.h"
 
+#define XGMAC_AXI_BLEN		7
+
+struct xgmac_axi {
+	bool axi_lpi_en;
+	bool axi_xit_frm;
+	bool axi_fb;
+	u32 axi_wr_osr_lmt;
+	u32 axi_rd_osr_lmt;
+	u32 axi_blen[XGMAC_AXI_BLEN];
+};
+
 static void *xgmac_alloc_descs(struct xgmac_priv *xgmac, unsigned int num)
 {
 	return memalign(ARCH_DMA_MINALIGN, num * xgmac->desc_size);
@@ -472,6 +483,95 @@ static int xgmac_get_phy_addr(struct xgmac_priv *priv, struct udevice *dev)
 	return reg;
 }
 
+static int xgmac_axi_setup(struct udevice *dev, struct xgmac_axi *axi)
+{
+	struct ofnode_phandle_args args;
+	int ret;
+
+	memset(axi, 0, sizeof(*axi));
+
+	ret = dev_read_phandle_with_args(dev, "snps,axi-config", NULL, 0, 0,
+					 &args);
+	if (ret)
+		return ret;
+
+	axi->axi_lpi_en = ofnode_read_bool(args.node, "snps,lpi_en");
+	axi->axi_xit_frm = ofnode_read_bool(args.node, "snps,xit_frm");
+	axi->axi_fb = ofnode_read_bool(args.node, "snps,fb");
+	axi->axi_wr_osr_lmt =
+		ofnode_read_u32_default(args.node, "snps,wr_osr_lmt", 1);
+	axi->axi_rd_osr_lmt =
+		ofnode_read_u32_default(args.node, "snps,rd_osr_lmt", 1);
+	ofnode_read_u32_array(args.node, "snps,blen", axi->axi_blen,
+			      ARRAY_SIZE(axi->axi_blen));
+
+	return 0;
+}
+
+static u32 xgmac_axi_blen_to_bit(u32 blen)
+{
+	switch (blen) {
+	case 256:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN256;
+	case 128:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN128;
+	case 64:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN64;
+	case 32:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN32;
+	case 16:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN16;
+	case 8:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN8;
+	case 4:
+		return XGMAC_DMA_SYSBUS_MODE_BLEN4;
+	default:
+		return 0;
+	}
+}
+
+static void xgmac_config_axi_bus(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	struct xgmac_axi axi;
+	u32 val;
+	int ret;
+	int i;
+
+	ret = xgmac_axi_setup(dev, &axi);
+	if (ret)
+		return;
+
+	val = readl(&xgmac->dma_regs->sysbus_mode);
+
+	if (axi.axi_lpi_en)
+		val |= XGMAC_DMA_SYSBUS_MODE_EN_LPI;
+
+	if (axi.axi_xit_frm)
+		val |= XGMAC_DMA_SYSBUS_MODE_LPI_XIT_PKT;
+
+	val &= ~(XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_MASK <<
+		 XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_SHIFT);
+	val |= (axi.axi_wr_osr_lmt & XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_MASK) <<
+		XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_SHIFT;
+
+	val &= ~(XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_MASK <<
+		 XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT);
+	val |= (axi.axi_rd_osr_lmt & XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_MASK) <<
+		XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT;
+
+	if (axi.axi_fb)
+		val &= ~XGMAC_DMA_SYSBUS_MODE_UNDEF;
+	else
+		val |= XGMAC_DMA_SYSBUS_MODE_UNDEF;
+
+	val &= ~XGMAC_DMA_SYSBUS_MODE_BLEN_MASK;
+	for (i = 0; i < ARRAY_SIZE(axi.axi_blen); i++)
+		val |= xgmac_axi_blen_to_bit(axi.axi_blen[i]);
+
+	writel(val, &xgmac->dma_regs->sysbus_mode);
+}
+
 static int xgmac_start(struct udevice *dev)
 {
 	struct xgmac_priv *xgmac = dev_get_priv(dev);
@@ -655,8 +755,7 @@ static int xgmac_start(struct udevice *dev)
 	/* Configure DMA */
 	clrsetbits_le32(&xgmac->dma_regs->sysbus_mode,
 			XGMAC_DMA_SYSBUS_MODE_AAL,
-			XGMAC_DMA_SYSBUS_MODE_EAME |
-			XGMAC_DMA_SYSBUS_MODE_UNDEF);
+			XGMAC_DMA_SYSBUS_MODE_EAME);
 
 	/* Enable OSP mode */
 	setbits_le32(&xgmac->dma_regs->ch0_tx_control,
@@ -696,18 +795,7 @@ static int xgmac_start(struct udevice *dev)
 			XGMAC_DMA_CH0_RX_CONTROL_RXPBL_SHIFT,
 			8 << XGMAC_DMA_CH0_RX_CONTROL_RXPBL_SHIFT);
 
-	/* DMA performance configuration */
-	val = (XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_MASK <<
-	       XGMAC_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT) |
-	       (XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_MASK <<
-	       XGMAC_DMA_SYSBUS_MODE_WR_OSR_LMT_SHIFT) |
-	       XGMAC_DMA_SYSBUS_MODE_EAME |
-	       XGMAC_DMA_SYSBUS_MODE_BLEN16 |
-	       XGMAC_DMA_SYSBUS_MODE_BLEN8 |
-	       XGMAC_DMA_SYSBUS_MODE_BLEN4 |
-	       XGMAC_DMA_SYSBUS_MODE_BLEN32;
-
-	writel(val, &xgmac->dma_regs->sysbus_mode);
+	xgmac_config_axi_bus(dev);
 
 	/* Set up descriptors */
 
