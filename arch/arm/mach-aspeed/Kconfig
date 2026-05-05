@@ -44,6 +44,15 @@ config ASPEED_AST2700
 	  The Aspeed AST2700 is a ARM-based SoC with Cortex-A35 CPU.
 	  It is used as Board Management Controller on many server boards,
 	  which is enabled by support of LPC and eSPI peripherals.
+
+config ASPEED_AST2705
+	bool "Support Aspeed AST2705 SoC"
+	select ARM64
+	select SYS_ARCH_TIMER
+	help
+	  The Aspeed AST2705 is a ARM-based SoC with Cortex-A35 CPU.
+	  It is used as Board Management Controller on many server boards,
+	  which is enabled by support of LPC and eSPI peripherals.
 endchoice
 
 config ASPEED_DEFAULT_SPI_FREQUENCY
@@ -56,5 +65,6 @@ config ASPEED_DEFAULT_SPI_FREQUENCY
 source "arch/arm/mach-aspeed/ast2500/Kconfig"
 source "arch/arm/mach-aspeed/ast2600/Kconfig"
 source "arch/arm/mach-aspeed/ast2700/Kconfig"
+source "arch/arm/mach-aspeed/ast2705/Kconfig"
 
 endif

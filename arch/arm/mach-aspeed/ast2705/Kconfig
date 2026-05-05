@@ -1,0 +1,39 @@
+if ASPEED_AST2705
+
+config SYS_CPU
+	default "armv8"
+
+config SPI_KERNEL_FIT_ADDR
+	hex "SPI address of kernel FIT image"
+	default 0x100420000
+	help
+	  Kernel FIT start address in the SPI flash.
+
+choice
+	prompt "AST2705 board select"
+	depends on ASPEED_AST2705
+	default TARGET_EVB_AST2705
+
+config TARGET_EVB_AST2705
+	bool "EVB-AST2705"
+	depends on ASPEED_AST2705
+	select ARCH_MISC_INIT
+	help
+	  EVB-AST2705 is Aspeed evaluation board for AST2705 chip.
+	  It has 512M of RAM, 32M of SPI flash, two Ethernet ports,
+	  4 Serial ports, 4 USB ports, VGA port, PCIe, SD card slot,
+	  20 pin JTAG, pinouts for 14 I2Cs, 3 SPIs and eSPI, 8 PWMs.
+
+config TARGET_AST2705_DCSCM
+	bool "AST2705-DCSCM"
+	depends on ASPEED_AST2705
+	select ARCH_MISC_INIT
+	help
+	  AST2705_DCSCM is an Aspeed demo board in DCSCM form factor.
+
+endchoice
+
+source "board/aspeed/evb_ast2705/Kconfig"
+source "board/aspeed/ast2705_dcscm/Kconfig"
+
+endif
