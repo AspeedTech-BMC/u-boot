@@ -296,4 +296,5 @@ void xgmac_inval_buffer_generic(void *buf, size_t size);
 void xgmac_flush_buffer_generic(void *buf, size_t size);
 int xgmac_null_ops(struct udevice *dev);
 
+extern struct xgmac_config xgmac_aspeed_config;
 extern struct xgmac_config xgmac_socfpga_config;

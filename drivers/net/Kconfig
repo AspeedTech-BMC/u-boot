@@ -201,6 +201,13 @@ config DWC_ETH_XGMAC
 	  Ethernet MAC) IP block. The IP supports many options for bus type,
 	  clocking/reset structure, and feature list.
 
+config DWC_ETH_XGMAC_ASPEED
+	bool "Synopsys DWC Ethernet XGMAC device support for ASPEED"
+	select DWC_ETH_XGMAC
+	help
+	  The Synopsys Designware Ethernet XGMAC IP block with specific
+	  configuration used in ASPEED chip.
+
 config DWC_ETH_XGMAC_SOCFPGA
 	bool "Synopsys DWC Ethernet XGMAC device support for SOCFPGA"
 	select REGMAP
