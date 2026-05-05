@@ -25,17 +25,107 @@
 #include <dm/device_compat.h>
 #include "dwc_eth_xgmac.h"
 
+static int xgmac_probe_resources_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	int ret;
+
+	ret = reset_get_bulk(dev, &xgmac->reset_bulk);
+	if (ret) {
+		pr_err("xgmac reset request failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_get_by_name(dev, "stmmaceth", &xgmac->clk_common);
+	if (ret) {
+		pr_err("xgmac clock request failed: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int xgmac_remove_resources_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+
+	reset_release_bulk(&xgmac->reset_bulk);
+	clk_free(&xgmac->clk_common);
+
+	return 0;
+}
+
+static int xgmac_stop_resets_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	int ret;
+
+	ret = reset_assert_bulk(&xgmac->reset_bulk);
+	if (ret < 0)
+		pr_err("xgmac reset assert failed: %d\n", ret);
+
+	return ret;
+}
+
+static int xgmac_start_resets_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	int ret;
+
+	ret = reset_assert_bulk(&xgmac->reset_bulk);
+	if (ret < 0) {
+		pr_err("xgmac reset assert failed: %d", ret);
+		return ret;
+	}
+
+	udelay(2);
+
+	ret = reset_deassert_bulk(&xgmac->reset_bulk);
+	if (ret < 0) {
+		pr_err("xgmac reset de-assert failed: %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int xgmac_start_clks_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	int ret;
+
+	ret = clk_enable(&xgmac->clk_common);
+	if (!ret)
+		xgmac->clk_ck_enabled = true;
+	else
+		pr_err("xgmac clock enable failed: %d\n", ret);
+
+	return ret;
+}
+
+static int xgmac_stop_clks_aspeed(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+
+	if (xgmac->clk_ck_enabled) {
+		clk_disable(&xgmac->clk_common);
+		xgmac->clk_ck_enabled = false;
+	}
+
+	return 0;
+}
+
 static struct xgmac_ops xgmac_aspeed_ops = {
 	.xgmac_inval_desc = xgmac_inval_desc_generic,
 	.xgmac_flush_desc = xgmac_flush_desc_generic,
 	.xgmac_inval_buffer = xgmac_inval_buffer_generic,
 	.xgmac_flush_buffer = xgmac_flush_buffer_generic,
-	.xgmac_probe_resources = xgmac_null_ops,
-	.xgmac_remove_resources = xgmac_null_ops,
-	.xgmac_stop_resets = xgmac_null_ops,
-	.xgmac_start_resets = xgmac_null_ops,
-	.xgmac_stop_clks = xgmac_null_ops,
-	.xgmac_start_clks = xgmac_null_ops,
+	.xgmac_probe_resources = xgmac_probe_resources_aspeed,
+	.xgmac_remove_resources = xgmac_remove_resources_aspeed,
+	.xgmac_stop_resets = xgmac_stop_resets_aspeed,
+	.xgmac_start_resets = xgmac_start_resets_aspeed,
+	.xgmac_stop_clks = xgmac_stop_clks_aspeed,
+	.xgmac_start_clks = xgmac_start_clks_aspeed,
 	.xgmac_calibrate_pads = xgmac_null_ops,
 	.xgmac_disable_calibration = xgmac_null_ops,
 	.xgmac_get_enetaddr = xgmac_null_ops,
