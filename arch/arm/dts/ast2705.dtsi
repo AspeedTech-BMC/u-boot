@@ -8,14 +8,9 @@
 
 	soc1: soc@14000000 {
 		xgmac: ethernet@140a0000 {
-			compatible = "aspeed,ast2700-dwxgmac", "intel,socfpga-dwxgmac",
-				     "snps,dwxgmac-2.10", "snps,dwxgmac";
+			compatible = "aspeed,ast2700-dwxgmac", "snps,dwxgmac-2.10", "snps,dwxgmac";
 			reg = <0x0 0x140a0000 0x0 0x8000>;
-			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "macirq";
 			phy-mode = "10gbase-r";
-			rx-fifo-depth = <4096>;
-			tx-fifo-depth = <4096>;
 			clocks = <&soc1_clk SCU1_CLK_GATE_MAC2CLK>;
 			clock-names = "stmmaceth";
 			resets = <&soc1_rst SCU1_RESET_MAC2>,
@@ -24,7 +19,6 @@
 			snps,axi-config = <&xgmac_axi_setup>;
 			snps,mtl-rx-config = <&xgmac_mtl_rx_setup>;
 			snps,mtl-tx-config = <&xgmac_mtl_tx_setup>;
-			snps,tso;
 			snps,pbl = <8>;
 			phy-handle = <&xpcs0>;
 			pcs-handle = <&xpcs0>;
@@ -34,6 +28,7 @@
 				snps,wr_osr_lmt = <0xf>;
 				snps,rd_osr_lmt = <0xf>;
 				snps,kbbe;
+				snps,fb;
 				snps,blen = <0 0 0 0 0 8 4>;
 			};
 
