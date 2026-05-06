@@ -165,6 +165,13 @@ config PHY_CORTINA_ACCESS
 config PHY_DAVICOM
 	bool "Davicom Ethernet PHYs support"
 
+config PHY_DW_XPCS
+	bool "Synopsys DesignWare XPCS support"
+	select PHYLIB_10G
+	help
+	  Enable support for Synopsys DesignWare XPCS blocks used as
+	  Clause 45 10GBASE-R PCS devices.
+
 config PHY_ET1011C
 	bool "LSI TruePHY ET1011C support"
 
