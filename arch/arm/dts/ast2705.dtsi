@@ -17,11 +17,8 @@
 				 <&soc1_rst SCU1_RESET_XPCS>;
 			reset-names = "stmmaceth", "ahb";
 			snps,axi-config = <&xgmac_axi_setup>;
-			snps,mtl-rx-config = <&xgmac_mtl_rx_setup>;
-			snps,mtl-tx-config = <&xgmac_mtl_tx_setup>;
 			snps,pbl = <8>;
 			phy-handle = <&xpcs0>;
-			pcs-handle = <&xpcs0>;
 			status = "disabled";
 
 			xgmac_axi_setup: stmmac-axi-config {
@@ -32,28 +29,9 @@
 				snps,blen = <0 0 0 0 0 8 4>;
 			};
 
-			xgmac_mtl_rx_setup: rx-queues-config {
-				snps,rx-queues-to-use = <1>;
-				snps,rx-sched-sp;
-
-				queue0 {
-					snps,dcb-algorithm;
-					snps,map-to-dma-channel = <0>;
-				};
-			};
-
-			xgmac_mtl_tx_setup: tx-queues-config {
-				snps,tx-queues-to-use = <1>;
-
-				queue0 {
-					snps,dcb-algorithm;
-				};
-			};
-
 			xgmac_mdio0: mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "snps,dwmac-mdio";
 
 				xpcs0: ethernet-phy@0 {
 					reg = <0>;
