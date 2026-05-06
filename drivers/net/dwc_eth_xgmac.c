@@ -328,6 +328,20 @@ static int xgmac_set_gmii_speed(struct udevice *dev)
 	return 0;
 }
 
+static int xgmac_set_xgmii_speed_10g(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	u32 val;
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	/* FPGA -> 5G */
+	val = XGMAC_MAC_CONF_SS_10G_XGMII << XGMAC_MAC_CONF_SS_SHIFT;
+	writel(val, &xgmac->mac_regs->tx_configuration);
+
+	return 0;
+}
+
 static int xgmac_set_mii_speed_100(struct udevice *dev)
 {
 	struct xgmac_priv *xgmac = dev_get_priv(dev);
@@ -372,6 +386,10 @@ static int xgmac_adjust_link(struct udevice *dev)
 	}
 
 	switch (xgmac->phy->speed) {
+	case SPEED_10000:
+		en_calibration = false;
+		ret = xgmac_set_xgmii_speed_10g(dev);
+		break;
 	case SPEED_1000:
 		en_calibration = true;
 		ret = xgmac_set_gmii_speed(dev);

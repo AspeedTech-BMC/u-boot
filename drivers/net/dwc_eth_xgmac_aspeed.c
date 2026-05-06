@@ -134,9 +134,9 @@ static struct xgmac_ops xgmac_aspeed_ops = {
 struct xgmac_config __maybe_unused xgmac_aspeed_config = {
 	.reg_access_always_ok = false,
 	.swr_wait = 50,
-	.config_mac = XGMAC_MAC_RXQ_CTRL0_RXQ0EN_ENABLED_DCB,
-	.config_mac_mdio = XGMAC_MAC_MDIO_ADDRESS_CR_350_400,
-	.axi_bus_width = XGMAC_AXI_WIDTH_64,
+	.config_mac = XGMAC_MAC_RXQ_CTRL0_RXQ0EN_NOT_ENABLED,
+	.config_mac_mdio = XGMAC_MAC_MDIO_ADDRESS_CR_300_350,
+	.axi_bus_width = XGMAC_AXI_WIDTH_128,
 	.interface = dev_read_phy_mode,
 	.ops = &xgmac_aspeed_ops
 };
