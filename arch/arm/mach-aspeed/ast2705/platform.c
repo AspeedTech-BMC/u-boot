@@ -39,8 +39,14 @@ enum env_location env_get_location(enum env_operation op, int prio)
 int arch_misc_init(void)
 {
 	if (IS_ENABLED(CONFIG_ARCH_MISC_INIT)) {
-		if ((readl(ASPEED_IO_HW_STRAP1) & SCU_IO_HWSTRAP_EMMC)) {
-			if ((readl(ASPEED_IO_HW_STRAP1) & SCU_IO_HWSTRAP_UFS))
+		u32 strap = readl(ASPEED_IO_HW_STRAP1);
+
+		if (strap & SCU_IO_HWSTRAP_RECOVERY) {
+			if (strap & SCU_IO_HWSTRAP_MAC) {
+				env_set("boot_device", "mac");
+			}
+		} else if (strap & SCU_IO_HWSTRAP_EMMC) {
+			if (strap & SCU_IO_HWSTRAP_UFS)
 				env_set("boot_device", "ufs");
 			else
 				env_set("boot_device", "mmc");
@@ -49,7 +55,7 @@ int arch_misc_init(void)
 			spi_bootarg_config();
 		}
 
-		if ((readl(ASPEED_IO_HW_STRAP1) & SCU_IO_HWSTRAP_SECBOOT))
+		if (strap & SCU_IO_HWSTRAP_SECBOOT)
 			env_set("verify", "yes");
 		else
 			env_set("verify", "no");
