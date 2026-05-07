@@ -30,5 +30,6 @@
 	"ufsbootb=setenv bootpart 3; setenv rootfs rofs-b; run setufsargs; ext4load scsi 0:${bootpart} ${loadaddr} fitImage && bootm ${loadaddr}; echo Error loading kernel FIT image\0"	\
 	"bootufs=if test \"${bootside}\" = \"b\"; then run ufsbootb; run ufsboota; else run ufsboota; run ufsbootb; fi\0"	\
 	"verify=no\0"	\
+	"bootmac=dhcp && bootm\0"	\
 	""
 #endif	/* __CONFIG_H */
