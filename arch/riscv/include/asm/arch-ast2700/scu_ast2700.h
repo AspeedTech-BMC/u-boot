@@ -671,7 +671,5 @@ struct ast2705_scu1 {
 	uint32_t pin_conf;		/* 0x478 */
 };
 
-static inline void ast2700_rgmii_init(struct ast2700_scu1 *scu) {}
-
 #endif
 #endif

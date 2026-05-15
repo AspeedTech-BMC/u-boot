@@ -887,7 +887,6 @@ static int ast2700_clk1_init(struct udevice *dev)
 	struct ast2700_clk_priv *priv = dev_get_priv(dev);
 	struct ast2700_scu1 *scu = (struct ast2700_scu1 *)priv->reg;
 
-	ast2700_rgmii_init(scu);
 	ast2700_init_spi(scu);
 	ast2700_init_mac_clk(scu);
 	ast2700_init_rgmii_clk(scu);
