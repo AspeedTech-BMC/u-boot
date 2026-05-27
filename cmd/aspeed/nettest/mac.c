@@ -59,6 +59,13 @@
 #define TXR_BADR_HI			0x17c
 #define RXR_BADR_HI			0x18c
 
+#define RGMII_DLY_SEL_1G	0x1d0
+#define TX_CLK_IO_DLY_SEL		GENMASK(5, 0)
+#define RX_CLK_IO_DLY_SEL		GENMASK(13, 8)
+#define RMII_TX_ALIGN_CLK_FALL		BIT(20)
+#define RGMII_DLY_SEL_100M	0x1d4
+#define RGMII_DLY_SEL_10M	0x1d8
+
 /* descriptors */
 #define TO_PHY_ADDR(x)			(x)
 #if defined(ASPEED_AST2600)
@@ -459,4 +466,75 @@ void aspeed_mac_reg_dump(struct mac_s *obj)
 		reg[i] = readl(obj->device->base + (i * 4));
 
 	print_hex_dump("", DUMP_PREFIX_OFFSET, 16, 4, reg, sizeof(u32) * 64, false);
+}
+
+void ast2705_clk_set_rmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
+{
+	void __iomem *base = obj->device->base + RGMII_DLY_SEL_1G;
+	u32 reg;
+
+	reg = readl(base);
+	reg &= ~(RMII_TX_ALIGN_CLK_FALL | RX_CLK_IO_DLY_SEL);
+	if (tx)
+		reg |= RMII_TX_ALIGN_CLK_FALL;
+	reg |= FIELD_PREP(RX_CLK_IO_DLY_SEL, rx);
+	writel(reg, base);
+}
+
+void ast2705_clk_get_rmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
+{
+	void __iomem *base = obj->device->base + RGMII_DLY_SEL_1G;
+	u32 reg;
+
+	reg = readl(base);
+	*tx = !!(reg & RMII_TX_ALIGN_CLK_FALL);
+	*rx = FIELD_GET(RX_CLK_IO_DLY_SEL, reg);
+}
+
+void ast2705_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
+{
+	void __iomem *base = obj->device->base;
+	u32 reg;
+
+	switch (speed) {
+	case 100:
+		base += RGMII_DLY_SEL_100M;
+		break;
+	case 10:
+		base += RGMII_DLY_SEL_10M;
+		break;
+	case 1000:
+	default:
+		base += RGMII_DLY_SEL_1G;
+		break;
+	}
+
+	reg = readl(base);
+	reg &= ~(TX_CLK_IO_DLY_SEL | RX_CLK_IO_DLY_SEL);
+	reg |= FIELD_PREP(TX_CLK_IO_DLY_SEL, tx);
+	reg |= FIELD_PREP(RX_CLK_IO_DLY_SEL, rx);
+	writel(reg, base);
+}
+
+void ast2705_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
+{
+	void __iomem *base = obj->device->base;
+	u32 reg;
+
+	switch (speed) {
+	case 100:
+		base += RGMII_DLY_SEL_100M;
+		break;
+	case 10:
+		base += RGMII_DLY_SEL_10M;
+		break;
+	case 1000:
+	default:
+		base += RGMII_DLY_SEL_1G;
+		break;
+	}
+
+	reg = readl(base);
+	*tx = FIELD_GET(TX_CLK_IO_DLY_SEL, reg);
+	*rx = FIELD_GET(RX_CLK_IO_DLY_SEL, reg);
 }

@@ -137,9 +137,9 @@ static int aspeed_clk_get_mii_reg_info(enum aspeed_dev_id macdev, int speed,
 	return 0;
 }
 
-void aspeed_clk_set_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx,
-				u32 rx)
+void aspeed_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
 {
+	enum aspeed_dev_id macdev = obj->device->dev_id;
 	struct mii_reg_info_s info;
 	u32 reg;
 	int ret;
@@ -159,9 +159,9 @@ void aspeed_clk_set_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx,
 	writel(reg, info.addr);
 }
 
-void aspeed_clk_get_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 *tx,
-				u32 *rx)
+void aspeed_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
 {
+	enum aspeed_dev_id macdev = obj->device->dev_id;
 	struct mii_reg_info_s info;
 	u32 reg;
 	int ret;
@@ -181,8 +181,9 @@ void aspeed_clk_get_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 *tx,
 	}
 }
 
-void aspeed_clk_set_rmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx, u32 rx)
+void aspeed_clk_set_rmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
 {
+	enum aspeed_dev_id macdev = obj->device->dev_id;
 	struct mii_reg_info_s info;
 	u32 reg;
 	int ret;
@@ -207,8 +208,9 @@ void aspeed_clk_set_rmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx, u32
 	writel(reg, info.addr);
 }
 
-void aspeed_clk_get_rmii_delay(enum aspeed_dev_id macdev, int speed, u32 *tx, u32 *rx)
+void aspeed_clk_get_rmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
 {
+	enum aspeed_dev_id macdev = obj->device->dev_id;
 	struct mii_reg_info_s info;
 	u32 reg;
 	int ret;

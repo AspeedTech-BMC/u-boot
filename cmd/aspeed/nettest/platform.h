@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <hexdump.h>
 #include <console.h>
+#include <asm/arch/scu_ast2700.h>
 
 #define AST_SGMII_BASE		0X014C01000 //HS034
 #define AST_IO_SCU_BASE		0X014C02000 //HS035

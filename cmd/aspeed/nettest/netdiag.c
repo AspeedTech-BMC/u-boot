@@ -39,6 +39,47 @@ static struct mac_adaptor_s mac_adaptor = { 0 };
 struct test_s test_obj = { 0 };
 u8 mac_addr[8] = { 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 }; /*[0], [1]: pendding*/
 
+/* SoC mapping Table */
+#define SOC_ID(str, rev, chip_version) { .name = str, .rev_id = rev, .chip = chip_version}
+
+struct soc_id {
+	const char *name;
+	u64 rev_id;
+	enum chip_version chip;
+};
+
+static struct soc_id soc_map_table[] = {
+	SOC_ID("AST2750-A1", 0x0601000306010003, AST2700),
+	SOC_ID("AST2700-A1", 0x0601010306010103, AST2700),
+	SOC_ID("AST2720-A1", 0x0601020306010203, AST2700),
+	SOC_ID("AST2750-A2", 0x0602000306020003, AST2700),
+	SOC_ID("AST2700-A2", 0x0602010306020103, AST2700),
+	SOC_ID("AST2720-A2", 0x0602020306020203, AST2700),
+	SOC_ID("AST2755-A0", 0x0600000506020003, AST2705),
+	SOC_ID("AST2705-A0", 0x0600010506020103, AST2705),
+	SOC_ID("AST2725-A0", 0x0600020506020203, AST2705),
+};
+
+void net_print_soc_id(struct test_s *obj)
+{
+	int i;
+	u64 rev_id;
+
+	rev_id = readl(ASPEED_CPU_REVISION_ID);
+	rev_id = ((u64)readl(ASPEED_IO_REVISION_ID) << 32) | rev_id;
+
+	for (i = 0; i < ARRAY_SIZE(soc_map_table); i++) {
+		if (rev_id == soc_map_table[i].rev_id)
+			break;
+	}
+	if (i == ARRAY_SIZE(soc_map_table)) {
+		printf("UnKnow-SOC: %llx\n", rev_id);
+	} else {
+		printf("SOC: %4s\n", soc_map_table[i].name);
+		obj->chip = soc_map_table[i].chip;
+	}
+}
+
 int net_connect_mdio(int mac_idx, int mdio_idx)
 {
 	if (mac_idx >= NUM_OF_MAC_DEVICES ||
@@ -552,6 +593,8 @@ int netdiag_func(int argc, char *const argv[])
 		netdiag_cli_usage();
 		return FAIL_PARAMETER_INVALID;
 	}
+
+	net_print_soc_id(&test_obj);
 
 	mac_obj = mac_adaptor.objs[parm->mac_index];
 	phy = mac_obj->phy;

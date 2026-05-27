@@ -65,10 +65,10 @@
 #define PROTOCOL_TCP		0x02
 #define PROTOCOL_UDP		0x03
 
-#define MAX_DELAY_TAPS_RGMII_TX         63
-#define MAX_DELAY_TAPS_RGMII_RX         63
-#define MAX_DELAY_TAPS_RMII_TX          1
-#define MAX_DELAY_TAPS_RMII_RX          63
+#define MAX_DELAY_TAPS_RGMII_TX		63
+#define MAX_DELAY_TAPS_RGMII_RX		63
+#define MAX_DELAY_TAPS_RMII_TX		1
+#define MAX_DELAY_TAPS_RMII_RX		63
 
 struct aspeed_sig_desc_s {
 	u32 offset;
@@ -265,6 +265,11 @@ struct mac_s {
 	bool rx_vlan_remove;
 };
 
+enum chip_version {
+	AST2700 = 0,
+	AST2705,
+};
+
 struct test_s {
 	enum test_mode mode;
 	struct mac_s *mac_obj;
@@ -273,6 +278,8 @@ struct test_s {
 	int pkt_per_test;
 
 	struct parameter_s parm;
+
+	enum chip_version chip;
 
 	struct {
 		u32 mode;
@@ -403,10 +410,10 @@ int aspeed_reset_assert(struct aspeed_device_s *device);
 int aspeed_reset_deassert(struct aspeed_device_s *device);
 int aspeed_clk_enable(struct aspeed_device_s *device);
 int aspeed_clk_disable(struct aspeed_device_s *device);
-void aspeed_clk_set_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx, u32 rx);
-void aspeed_clk_get_rgmii_delay(enum aspeed_dev_id macdev, int speed, u32 *tx, u32 *rx);
-void aspeed_clk_set_rmii_delay(enum aspeed_dev_id macdev, int speed, u32 tx, u32 rx);
-void aspeed_clk_get_rmii_delay(enum aspeed_dev_id macdev, int speed, u32 *tx, u32 *rx);
+void aspeed_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx);
+void aspeed_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx);
+void aspeed_clk_set_rmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx);
+void aspeed_clk_get_rmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx);
 
 void aspeed_mdio_init(struct mdio_s *mdio);
 int aspeed_mdio_read(struct mdio_s *mdio, int addr, int regnum);
@@ -424,6 +431,10 @@ int aspeed_mac_init_rx_desc(struct mac_s *obj);
 int aspeed_mac_init_tx_desc(struct mac_s *obj);
 int aspeed_mac_set_speed(struct mac_s *obj, u32 speed);
 void aspeed_mac_reg_dump(struct mac_s *obj);
+void ast2705_clk_set_rmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx);
+void ast2705_clk_get_rmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx);
+void ast2705_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx);
+void ast2705_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx);
 int net_get_packet(struct mac_s *obj, void **packet, u32 *rxlen, int max_try);
 int net_enable_mdio_pin(int mdio_idx);
 #if defined(ASPEED_AST2700)

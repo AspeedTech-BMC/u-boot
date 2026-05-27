@@ -192,8 +192,8 @@ int nettest_test(struct test_s *test_obj)
 	int tx_c, tx_s, tx_e, rx_c, rx_s, rx_e, tx_max, rx_max;
 	int i, j, has_error = 0;
 	int (*run_test)(struct test_s *test_obj);
-	void (*clk_get_delay)(enum aspeed_dev_id macdev, int speed, u32 *tx, u32 *rx);
-	void (*clk_set_delay)(enum aspeed_dev_id macdev, int speed, u32 tx, u32 rx);
+	void (*clk_get_delay)(struct mac_s *mac_obj, int speed, u32 *tx, u32 *rx);
+	void (*clk_set_delay)(struct mac_s *mac_obj, int speed, u32 tx, u32 rx);
 
 	nettest_info(test_obj);
 
@@ -214,19 +214,33 @@ int nettest_test(struct test_s *test_obj)
 		goto out;
 	}
 
-	if (mac_obj->phy->phy_mode == PHY_INTERFACE_MODE_RMII) {
-		clk_get_delay = aspeed_clk_get_rmii_delay;
-		clk_set_delay = aspeed_clk_set_rmii_delay;
-		tx_max = MAX_DELAY_TAPS_RMII_TX;
-		rx_max = MAX_DELAY_TAPS_RMII_RX;
+	if (test_obj->chip == AST2705) {
+		if (mac_obj->phy->phy_mode == PHY_INTERFACE_MODE_RMII) {
+			clk_get_delay = ast2705_clk_get_rmii_delay;
+			clk_set_delay = ast2705_clk_set_rmii_delay;
+			tx_max = MAX_DELAY_TAPS_RMII_TX;
+			rx_max = MAX_DELAY_TAPS_RMII_RX;
+		} else {
+			clk_get_delay = ast2705_clk_get_rgmii_delay;
+			clk_set_delay = ast2705_clk_set_rgmii_delay;
+			tx_max = MAX_DELAY_TAPS_RGMII_TX;
+			rx_max = MAX_DELAY_TAPS_RGMII_RX;
+		}
 	} else {
-		clk_get_delay = aspeed_clk_get_rgmii_delay;
-		clk_set_delay = aspeed_clk_set_rgmii_delay;
-		tx_max = MAX_DELAY_TAPS_RGMII_TX;
-		rx_max = MAX_DELAY_TAPS_RGMII_RX;
+		if (mac_obj->phy->phy_mode == PHY_INTERFACE_MODE_RMII) {
+			clk_get_delay = aspeed_clk_get_rmii_delay;
+			clk_set_delay = aspeed_clk_set_rmii_delay;
+			tx_max = MAX_DELAY_TAPS_RMII_TX;
+			rx_max = MAX_DELAY_TAPS_RMII_RX;
+		} else {
+			clk_get_delay = aspeed_clk_get_rgmii_delay;
+			clk_set_delay = aspeed_clk_set_rgmii_delay;
+			tx_max = MAX_DELAY_TAPS_RGMII_TX;
+			rx_max = MAX_DELAY_TAPS_RGMII_RX;
+		}
 	}
 
-	clk_get_delay(mac_obj->device->dev_id, mac_obj->phy->speed, (u32 *)&tx_c,
+	clk_get_delay(mac_obj, mac_obj->phy->speed, (u32 *)&tx_c,
 		      (u32 *)&rx_c);
 
 	/* if need to specify tx/rx delay */
@@ -239,7 +253,7 @@ int nettest_test(struct test_s *test_obj)
 			parm->rx_delay = rx_c;
 		else
 			rx_c = parm->rx_delay;
-		clk_set_delay(mac_obj->device->dev_id, mac_obj->phy->speed, parm->tx_delay,
+		clk_set_delay(mac_obj, mac_obj->phy->speed, parm->tx_delay,
 			      parm->rx_delay);
 		/* single step */
 		parm->margin = 0;
@@ -274,7 +288,7 @@ int nettest_test(struct test_s *test_obj)
 		for (j = rx_s; j <= rx_e; j++) {
 			int status;
 
-			clk_set_delay(mac_obj->device->dev_id, mac_obj->phy->speed, i, j);
+			clk_set_delay(mac_obj, mac_obj->phy->speed, i, j);
 			status = run_test(test_obj);
 			if (status == 0) {
 				if (i == tx_c && j == rx_c)
@@ -297,7 +311,7 @@ int nettest_test(struct test_s *test_obj)
 #if defined(U_BOOT)
 			if (ctrlc()) {
 				clear_ctrlc();
-				clk_set_delay(mac_obj->device->dev_id, mac_obj->phy->speed, tx_c, rx_c);
+				clk_set_delay(mac_obj, mac_obj->phy->speed, tx_c, rx_c);
 				aspeed_reset_deassert(mac_obj->device);
 				aspeed_mac_set_loopback(mac_obj, false);
 				aspeed_mac_set_sgmii_loopback(mac_obj, false);
@@ -310,7 +324,7 @@ int nettest_test(struct test_s *test_obj)
 
 	/* restore the delay setting */
 	printf("\nSystem default setting: TX: 0x%x, RX: 0x%x\n", tx_c, rx_c);
-	clk_set_delay(mac_obj->device->dev_id, mac_obj->phy->speed, tx_c, rx_c);
+	clk_set_delay(mac_obj, mac_obj->phy->speed, tx_c, rx_c);
 out:
 	aspeed_reset_deassert(mac_obj->device);
 	aspeed_mac_set_loopback(mac_obj, false);
