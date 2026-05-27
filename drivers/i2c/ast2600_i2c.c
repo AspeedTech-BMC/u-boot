@@ -27,36 +27,63 @@ struct ast2600_i2c_priv {
 static int ast2700_i2c_read_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 				 u8 *buffer, size_t len, bool send_stop)
 {
-	int ret = 0;
-	u32 cmd, isr;
-	u64 rx_buf = (uintptr_t)buffer;
+	int ret = 0, i, j, k, count = I2CC_BUFF_SIZE;
+	u32 cmd = I2CM_PKT_EN, isr, temp_data;
+	u32 *rx_buf = (u32 *)buffer;
+	u8 *rx_dst = NULL, *rx_src = NULL;
 
-	/* Set DMA rx buffer */
-	writel(I2CM_SET_DMA_BASE_H(rx_buf), &priv->regs->m_dma_rx_hi);
-	writel(I2CM_SET_DMA_BASE_L(rx_buf), &priv->regs->m_dma_rxa);
+	/* rx case would not support scan case */
+	if (!len)
+		return -EINVAL;
 
-	cmd = I2CM_PKT_EN | I2CM_PKT_ADDR(chip_addr) | I2CM_RX_DMA_EN |
-		  I2CM_RX_CMD | I2CM_START_CMD | I2CM_RX_CMD_LAST | I2CM_STOP_CMD;
+	writel(0x0, &priv->regs->m_dma_rx_hi);
+	writel(0x10, &priv->regs->m_dma_rxa);
 
-	writel(0, &priv->regs->m_dma_len);
-	writel(I2CM_SET_RX_DMA_LEN(len - 1), &priv->regs->m_dma_len);
+	cmd |= I2CM_START_CMD | I2CM_RX_CMD | I2CM_PKT_ADDR(chip_addr);
 
-	/* invalid rx buffer d cache */
-	invalidate_dcache_range(rx_buf, rx_buf + len);
+	for (i = 0; i < len; i += I2CC_BUFF_SIZE) {
+		/* last data with stop check */
+		if (len - i <= I2CC_BUFF_SIZE) {
+			count = len - i;
+			cmd |= I2CM_RX_CMD_LAST;
+			if (send_stop)
+				cmd |= I2CM_STOP_CMD;
+		}
 
-	writel(cmd, &priv->regs->cmd_sts);
+		cmd |= I2CM_RX_DMA_EN;
 
-	ret = readl_poll_timeout(&priv->regs->isr, isr,
-				 isr & I2CM_PKT_DONE,
-				 I2C_TIMEOUT_US);
-	if (ret)
-		return -ETIMEDOUT;
+		writel(0, &priv->regs->m_dma_len);
+		writel(I2CM_SET_RX_DMA_LEN(count - 1), &priv->regs->m_dma_len);
 
-	writel(isr, &priv->regs->isr);
+		writel(cmd, &priv->regs->cmd_sts);
 
-	if (isr & (I2CM_TX_NAK | I2CM_ABNORMAL)) {
-		debug("abnormal irq: 0x%x\n", isr);
-		return -EREMOTEIO;
+		ret = readl_poll_timeout(&priv->regs->isr, isr,
+					 isr & I2CM_PKT_DONE,
+					 I2C_TIMEOUT_US);
+		if (ret)
+			return -ETIMEDOUT;
+
+		for (j = 0 ; j < count ; j += 4) {
+			if (count - j < 4) {
+				temp_data = priv->regs->m_buffrx[j >> 2];
+				rx_dst = (u8 *)rx_buf;
+				rx_src = (u8 *)(&temp_data);
+				for (k = 0; k < count - j; k++)
+					rx_dst[k] = rx_src[k];
+			} else {
+				*rx_buf = priv->regs->m_buffrx[j >> 2];
+			}
+			rx_buf++;
+		}
+
+		writel(isr, &priv->regs->isr);
+
+		if (isr & (I2CM_TX_NAK | I2CM_ABNORMAL)) {
+			debug("abnormal irq: 0x%x\n", isr);
+			return -EREMOTEIO;
+		}
+
+		cmd = I2CM_PKT_EN;
 	}
 
 	return ret;
@@ -65,13 +92,13 @@ static int ast2700_i2c_read_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 static int ast2700_i2c_write_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 				  u8 *buffer, size_t len, bool send_stop)
 {
-	int ret = 0;
-	u32 cmd, isr;
-	u64 tx_buf = (uintptr_t)buffer;
+	int ret = 0, i = 0, j = 0, count = I2CC_BUFF_SIZE;
+	u32 cmd = I2CM_PKT_EN, isr;
+	u32 *tx_buf = (u32 *)buffer;
 
 	/* scan case */
 	if (!len) {
-		cmd = I2CM_PKT_EN | I2CM_PKT_ADDR(chip_addr) |
+		cmd |= I2CM_PKT_ADDR(chip_addr) |
 		      I2CM_START_CMD | I2CM_STOP_CMD;
 
 		writel(cmd, &priv->regs->cmd_sts);
@@ -88,33 +115,45 @@ static int ast2700_i2c_write_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 			return -EREMOTEIO;
 		}
 	} else {
-		/* write case */
-		/* Set DMA buffer */
-		writel(I2CM_SET_DMA_BASE_H(tx_buf), &priv->regs->m_dma_tx_hi);
-		writel(I2CM_SET_DMA_BASE_L(tx_buf), &priv->regs->m_dma_txa);
+		writel(0x0, &priv->regs->m_dma_tx_hi);
+		writel(0x0, &priv->regs->m_dma_txa);
 
-		cmd = I2CM_PKT_EN | I2CM_PKT_ADDR(chip_addr) | I2CM_TX_DMA_EN |
-			  I2CM_TX_CMD | I2CM_START_CMD | I2CM_STOP_CMD;
+		cmd |= I2CM_START_CMD | I2CM_TX_CMD | I2CM_PKT_ADDR(chip_addr);
 
-		writel(0, &priv->regs->m_dma_len);
-		writel(I2CM_SET_TX_DMA_LEN(len - 1), &priv->regs->m_dma_len);
+		for (i = 0; i < len; i += I2CC_BUFF_SIZE) {
+			/* last data with stop check */
+			if (len - i <= I2CC_BUFF_SIZE) {
+				count = len - i;
+				if (send_stop)
+					cmd |= I2CM_STOP_CMD;
+			}
 
-		/* flush tx buffer d cache */
-		flush_dcache_range(tx_buf, tx_buf + len);
+			for (j = 0 ; j < count ; j += 4) {
+				priv->regs->m_bufftx[j >> 2] = *tx_buf;
+				tx_buf++;
+			}
 
-		writel(cmd, &priv->regs->cmd_sts);
+			cmd |= I2CM_TX_DMA_EN;
 
-		ret = readl_poll_timeout(&priv->regs->isr, isr,
-					 isr & I2CM_PKT_DONE,
-					 I2C_TIMEOUT_US);
-		if (ret)
-			return -ETIMEDOUT;
+			writel(0, &priv->regs->m_dma_len);
+			writel(I2CM_SET_TX_DMA_LEN(count - 1), &priv->regs->m_dma_len);
 
-		writel(isr, &priv->regs->isr);
+			writel(cmd, &priv->regs->cmd_sts);
 
-		if (isr & (I2CM_TX_NAK | I2CM_ABNORMAL)) {
-			debug("abnormal irq: 0x%x\n", isr);
-			return -EREMOTEIO;
+			ret = readl_poll_timeout(&priv->regs->isr, isr,
+						 isr & I2CM_PKT_DONE,
+						 I2C_TIMEOUT_US);
+			if (ret)
+				return -ETIMEDOUT;
+
+			writel(isr, &priv->regs->isr);
+
+			if (isr & (I2CM_TX_NAK | I2CM_ABNORMAL)) {
+				debug("abnormal irq: 0x%x\n", isr);
+				return -EREMOTEIO;
+			}
+
+			cmd = I2CM_PKT_EN;
 		}
 	}
 
@@ -431,7 +470,7 @@ static int ast2600_i2c_probe(struct udevice *dev)
 {
 	struct ast2600_i2c_priv *priv = dev_get_priv(dev);
 	struct reset_ctl reset_ctl;
-	int rc, div_ctrl;
+	int rc, div_ctrl, ctrl;
 	u32 div_val = AST2700_I2CCG_DIV_CTRL;
 	bool reset = false;
 
@@ -469,6 +508,13 @@ static int ast2600_i2c_probe(struct udevice *dev)
 	writel(I2CC_BUS_AUTO_RELEASE | I2CC_MASTER_EN |
 		       I2CC_MULTI_MASTER_DIS,
 	       &priv->regs->fun_ctrl);
+
+	/* AST2700 set as buffer mode */
+	if (priv->version == AST2700) {
+		ctrl = readl(&priv->regs->version_ctrl);
+		ctrl &= ~(I2CC_DMA_MODE);
+		writel(ctrl, &priv->regs->version_ctrl);
+	}
 
 	writel(0, &priv->regs->ier);
 	/* Clear Interrupt */

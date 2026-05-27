@@ -28,10 +28,24 @@ struct ast2600_i2c_regs {
 	u32 s_len_sta;
 	u32 dma_cfg;
 	u32 dma_sta;
-	u32 dummy58;
-	u32 dummy5c;
+	u32 dummy58[2];
 	u32 m_dma_tx_hi;
 	u32 m_dma_rx_hi;
+	u32 s_dma_tx_hi;
+	u32 s_dma_rx_hi;
+	u32 misc[2];
+	u32 status;
+	u32 hs_actime;
+	u32 log[4]; //0x8c
+	u32 wlock;
+	u32 version_ctrl;
+	u32 m_cmdq;
+	u32 misc2;
+	u32 dummya0[8];
+	u32 m_bufftx[4];
+	u32 m_buffrx[4];
+	u32 s_bufftx[4];
+	u32 s_buffrx[4];
 };
 
 struct ast2600_i2c_global_regs {
@@ -42,8 +56,10 @@ struct ast2600_i2c_global_regs {
 	u32 clk_divid;
 };
 
-#define AST2600 0x0
-#define AST2700 0x1
+enum i2c_version {
+	AST2600,
+	AST2700,
+};
 
 /* 0x00 : I2CC Master/Slave Function Control Register  */
 #define I2CC_SLAVE_ADDR_RX_EN	BIT(20)
@@ -126,6 +142,11 @@ struct ast2600_i2c_global_regs {
 #define I2CM_SET_TX_DMA_LEN(x)	(((x) & GENMASK(11, 0)) | BIT(15))
 #define I2CM_SET_DMA_BASE_L(x)	((x) & GENMASK(31, 0))
 #define I2CM_SET_DMA_BASE_H(x)	(((x) >> 32) & GENMASK(8, 0))
+
+/* 0x94 : I2CC Version Control   */
+#define I2CC_DMA_MODE			BIT(2)
+
+#define I2CC_BUFF_SIZE			16
 
 #define I2C_TIMEOUT_US 100000
 
