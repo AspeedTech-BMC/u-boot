@@ -17,6 +17,8 @@
 #include <asm/arch-aspeed/scu_ast2700.h>
 #include <g_dnl.h>
 
+#include "mac.h"
+
 #define AHBC_GROUP(x)				(0x40 * (x))
 #define AHBC_HREADY_WAIT_CNT_REG		0x34
 #define   AHBC_HREADY_WAIT_CNT_MAX		0x3f
@@ -101,6 +103,7 @@ int board_init(void)
 	int ret;
 
 	ahbc_init();
+	mac_init();
 
 	regulators_enable_boot_on(0);
 
