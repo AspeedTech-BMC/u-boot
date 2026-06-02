@@ -11,6 +11,7 @@ obj-$(CONFIG_CMD_NETTEST) += \
 	pktgen.o \
 	checksum.o \
 	vlan.o \
+	m_filter.o \
 	mdio.o \
 	mac.o \
 	phy.o \

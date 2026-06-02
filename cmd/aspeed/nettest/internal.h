@@ -125,6 +125,7 @@ enum test_mode {
 	NCSI_MODE,
 	CHECKSUM_MODE,
 	VLAN_MODE,
+	M_FILTER_MODE,
 };
 
 #define DECLARE_DEV_CLK(_name, _reg_en, _reg_dis, _bits)                       \
@@ -245,6 +246,9 @@ struct parameter_s {
 	u32 ncsi_channel;
 	s32 tx_delay;
 	s32 rx_delay;
+	u32 m_filter_mode;
+	u32 m_filter_target;
+	u32 m_filter_pattern;
 };
 
 struct mac_s {
@@ -317,6 +321,12 @@ struct test_s {
 		u16 tci[PKT_PER_TEST];
 		bool append_vlan;
 	} vlan;
+
+	struct {
+		u32 mode;
+		u32 target;
+		u32 pattern;
+	} m_filter;
 	bool fail_stop;
 };
 
@@ -437,6 +447,9 @@ void ast2705_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx);
 void ast2705_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx);
 int net_get_packet(struct mac_s *obj, void **packet, u32 *rxlen, int max_try);
 int net_enable_mdio_pin(int mdio_idx);
+void aspeed_mac_set_mcast_hash(struct mac_s *obj, u32 ht0, u32 ht1);
+void aspeed_mac_enable_all_mcast(struct mac_s *obj, bool enable);
+void aspeed_mac_enable_hash_mcast(struct mac_s *obj, bool enable);
 #if defined(ASPEED_AST2700)
 #define MEMCPY memcpy
 #else

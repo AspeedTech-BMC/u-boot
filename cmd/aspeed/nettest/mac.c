@@ -33,6 +33,8 @@
 #define   DBLAC_IFG_INC			GENMASK(23, 23)
 #define FEAR				0x40
 #define RBSR				0x4c
+#define MAHT0				0x10
+#define MAHT1				0x14
 #define MACCR				0x50
 #define   MACCR_TXDMA_EN		BIT(0)
 #define   MACCR_RXDMA_EN		BIT(1)
@@ -537,4 +539,30 @@ void ast2705_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
 	reg = readl(base);
 	*tx = FIELD_GET(TX_CLK_IO_DLY_SEL, reg);
 	*rx = FIELD_GET(RX_CLK_IO_DLY_SEL, reg);
+}
+
+void aspeed_mac_set_mcast_hash(struct mac_s *obj, u32 ht0, u32 ht1)
+{
+	writel(ht0, obj->device->base + MAHT0);
+	writel(ht1, obj->device->base + MAHT1);
+}
+
+void aspeed_mac_enable_all_mcast(struct mac_s *obj, bool enable)
+{
+	u32 maccr = readl(obj->device->base + MACCR);
+
+	maccr &= ~(MACCR_RX_HT_EN | MACCR_RX_MULTIPKT_EN);
+	if (enable)
+		maccr |= MACCR_RX_MULTIPKT_EN;
+	writel(maccr, obj->device->base + MACCR);
+}
+
+void aspeed_mac_enable_hash_mcast(struct mac_s *obj, bool enable)
+{
+	u32 maccr = readl(obj->device->base + MACCR);
+
+	maccr &= ~(MACCR_RX_HT_EN | MACCR_RX_MULTIPKT_EN);
+	if (enable)
+		maccr |= MACCR_RX_HT_EN;
+	writel(maccr, obj->device->base + MACCR);
 }
