@@ -2549,6 +2549,15 @@ static int spi_nor_init_params(struct spi_nor *nor,
 			break;
 #endif
 		case SNOR_MFR_ST:
+#ifdef CONFIG_SPI_FLASH_XMC
+			/* XMC shares MFR byte 0x20 with ST but uses SR2 bit1 for QE */
+			if (info->id[1] == 0x40 || info->id[1] == 0x41 ||
+			    info->id[1] == 0x70) {
+				params->quad_enable = winbond_sr2_bit1_quad_enable;
+				break;
+			}
+#endif
+			/* fall through */
 		case SNOR_MFR_MICRON:
 		case SNOR_MFR_ISSI:
 			break;
@@ -2609,8 +2618,14 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		}
 
 		/* need to disable hold/reset pin feature */
-		if (JEDEC_MFR(info) == SNOR_MFR_ST)
-			params->quad_enable = micron_read_cr_quad_enable;
+		if (JEDEC_MFR(info) == SNOR_MFR_ST) {
+#ifdef CONFIG_SPI_FLASH_XMC
+			/* XMC shares MFR 0x20 with ST but does not have Micron NVCR */
+			if (info->id[1] != 0x40 && info->id[1] != 0x41 &&
+			    info->id[1] != 0x70)
+#endif
+				params->quad_enable = micron_read_cr_quad_enable;
+		}
 
 		if (JEDEC_MFR(info) == SNOR_MFR_GIGADEVICE)
 			params->quad_enable = winbond_sr2_bit1_quad_enable;
