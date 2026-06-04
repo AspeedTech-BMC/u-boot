@@ -167,7 +167,7 @@ enum otp_status {
 /* OTP key header format */
 #define OTP_KH_NUM			80
 #define OTP_KH_KEY_ID(kh)		((kh) & 0xf)
-#define OTP_KH_KEY_TYPE(kh)		(((kh) >> 4) & 0x7)
+#define OTP_KH_KEY_TYPE(kh)		(((kh) >> 4) & 0x3f)	/* bits 4~9: SOC types 1~6, OEM types 0x08~0x38 */
 #define OTP_KH_LAST(kh)			(((kh) >> 15) & 0x1)
 #define OTP_KH_OFFSET(kh)		(((kh) >> 16) & 0xfff)
 
@@ -1279,6 +1279,8 @@ static int _otp_print_key(u32 header, u32 offset, u8 *data)
 
 	} else if (key_info.key_type == SOC_VAULT || key_info.key_type == SOC_VAULT_SEED) {
 		buf_print(&data[key_offset], 0x20);
+	} else if (key_info.key_type == OEM_DATA) {
+		buf_print(&data[key_offset], 0x30);
 	}
 
 	return 0;

@@ -53,21 +53,36 @@ enum KeyType {
 	CAL_OWN_PUB_HASH = 4,
 	SOC_VAULT = 5,
 	SOC_VAULT_SEED = 6,
+	OEM_DATA = 7,	/* bits 4~6 = 0, bits 7~9 = oem_type+1; 6-bit value = (oem_type+1) << 3 */
 };
 
 static const struct otpkey_type a1_key_type[] = {
-	{1, SOC_ECDSA_PUB,     "ECDSA384 as SoC OEM DSS public key"},
-	{2, SOC_LMS_PUB,       "LMS as SoC OEM DSS public key"},
-	{3, CAL_MANU_PUB_HASH, "Manufacture public key hash for Caliptra"},
-	{4, CAL_OWN_PUB_HASH,  "Owner public key hash for Caliptra"},
-	{5, SOC_VAULT,         "AES-256 as secret vault key"},
-	{6, SOC_VAULT_SEED,    "AES-256 as secret vault key seed"},
+	{1,    SOC_ECDSA_PUB,     "ECDSA384 as SoC OEM DSS public key"},
+	{2,    SOC_LMS_PUB,       "LMS as SoC OEM DSS public key"},
+	{3,    CAL_MANU_PUB_HASH, "Manufacture public key hash for Caliptra"},
+	{4,    CAL_OWN_PUB_HASH,  "Owner public key hash for Caliptra"},
+	{5,    SOC_VAULT,         "AES-256 as secret vault key"},
+	{6,    SOC_VAULT_SEED,    "AES-256 as secret vault key seed"},
+	{0x08, OEM_DATA,          "OEM binary data (oem_type0)"},
+	{0x10, OEM_DATA,          "OEM binary data (oem_type1)"},
+	{0x18, OEM_DATA,          "OEM binary data (oem_type2)"},
+	{0x20, OEM_DATA,          "OEM binary data (oem_type3)"},
+	{0x28, OEM_DATA,          "OEM binary data (oem_type4)"},
+	{0x30, OEM_DATA,          "OEM binary data (oem_type5)"},
+	{0x38, OEM_DATA,          "OEM binary data (oem_type6)"},
 };
 
 static const struct otpkey_type a2_key_type[] = {
-	{4, CAL_OWN_PUB_HASH,  "Owner public key hash for Caliptra"},
-	{5, SOC_VAULT,         "AES-256 as secret vault key"},
-	{6, SOC_VAULT_SEED,    "AES-256 as secret vault key seed"},
+	{4,    CAL_OWN_PUB_HASH,  "Owner public key hash for Caliptra"},
+	{5,    SOC_VAULT,         "AES-256 as secret vault key"},
+	{6,    SOC_VAULT_SEED,    "AES-256 as secret vault key seed"},
+	{0x08, OEM_DATA,          "OEM binary data (oem_type0)"},
+	{0x10, OEM_DATA,          "OEM binary data (oem_type1)"},
+	{0x18, OEM_DATA,          "OEM binary data (oem_type2)"},
+	{0x20, OEM_DATA,          "OEM binary data (oem_type3)"},
+	{0x28, OEM_DATA,          "OEM binary data (oem_type4)"},
+	{0x30, OEM_DATA,          "OEM binary data (oem_type5)"},
+	{0x38, OEM_DATA,          "OEM binary data (oem_type6)"},
 };
 
 static const struct otprbp_info a1_rbp_info[] = {
