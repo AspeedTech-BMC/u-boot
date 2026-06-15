@@ -442,6 +442,8 @@ int netdiag_parse_parameter_from_argv(int argc, char *const argv[], struct param
 				parm->control = NETDIAG_CTRL_LOOPBACK_MII;
 			else if (strncmp(optarg, "tx", strlen("tx")) == 0)
 				parm->control = NETDIAG_CTRL_LOOPBACK_OFF;
+			else if (strncmp(optarg, "ext", strlen("ext")) == 0)
+				parm->control = NETDIAG_CTRL_LOOPBACK_EXT;
 			break;
 		case 's':
 			parm->speed = simple_strtoul(optarg, NULL, 10);

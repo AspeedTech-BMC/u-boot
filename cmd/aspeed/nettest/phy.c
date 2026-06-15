@@ -464,6 +464,17 @@ void phy_an8801_config(struct phy_s *obj)
 			aspeed_mdio_write(mdio, mdio->phy_addr, 0, 0x0100);
 			break;
 		}
+
+		/* poll link status up to 5 seconds */
+		aspeed_mdio_read(mdio, mdio->phy_addr, PHY_BMSR);
+		{
+			int timeout = 500;
+
+			do {
+				mdelay(10);
+				reg = aspeed_mdio_read(mdio, mdio->phy_addr, PHY_BMSR);
+			} while (!(reg & BMSR_LINK) && --timeout);
+		}
 	}
 }
 
