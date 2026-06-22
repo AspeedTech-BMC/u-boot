@@ -373,12 +373,18 @@ static void find_rgmii_delay(uint32_t index)
 	uint32_t rx, tx_en, tx_dis, rx_en, rx_dis;
 	uint32_t tx_start, tx_end;
 	uint32_t tx_average_delay, rx_average_delay;
-	uint32_t mac_loopback_delay = 0, dly32_average_delay = 0;
+	uint32_t dly32_average_delay = 0;
+	int32_t rx_init_delay = 0, tx_init_delay = 0;
 	uint8_t rgmii_chain;
 	uint8_t result[32];
 
 	if (check_calibration_delay(scu, index))
 		return;
+
+	/* TODO:: Confirm the real chip */
+	tx_init_delay = index ? -500 : 0;
+	/* TODO:: Confirm the real chip */
+	rx_init_delay = index ? -300 : 0;
 
 	rgmii_chain = index ? SCU_DBGSEL_RING_SEL_RGMII1_TX :
 			      SCU_DBGSEL_RING_SEL_RGMII0_TX;
@@ -392,30 +398,27 @@ static void find_rgmii_delay(uint32_t index)
 		return;
 
 	dly32_average_delay = cal_delay32_ring(scu, 0);
-	/* TODO:: */
+	/* TODO:: Confirm the real chip */
 	if (index)
 		rx_average_delay = (dly32_average_delay * 1778460) / 1000000;
 	else
 		rx_average_delay = (dly32_average_delay * 1926404) / 1000000;
-	/* TODO:: */
-	mac_loopback_delay = index ? 400 : 700;
 
 	mac_controller_init(scu, index);
 	mac_set_loopback(index, true);
 	prepare_tx_packet(tx_pkt_buf);
 	mac_txpkt_add(tx_pkt_buf);
 
-	/* TODO:: */
-	tx_en = (10000 - mac_loopback_delay) / tx_average_delay;
+	/* TODO:: Confirm the real chip */
+	tx_en = (2000 - rx_init_delay) / tx_average_delay;
 
 	for (rx = 0; rx < 32; rx++) {
 		set_rgmii_1g_delay(tx_en, rx, index, false);
 		result[rx] = packet_check(index);
 	}
 
-	/* TODO:: */
-	tx_en = 10000 / tx_average_delay;
-	tx_dis = 8000 / tx_average_delay;
+	/* TODO:: Confirm the real chip */
+	tx_dis = (0 - tx_init_delay) / tx_average_delay;
 
 	rx_dis = find_rx_center(result) + 1;
 	rx_en = rx_dis + 2000 / rx_average_delay;
