@@ -64,6 +64,7 @@ enum ftgmac100_model {
 	FTGMAC100_MODEL_ASPEED,
 	FTGMAC100_MODEL_AST2600,
 	FTGMAC100_MODEL_AST2700,
+	FTGMAC100_MODEL_AST2705,
 };
 
 union ftgmac100_dma_addr {
@@ -349,6 +350,7 @@ static int ftgmac100_start(struct udevice *dev)
 	union ftgmac100_dma_addr dma_addr;
 	struct phy_device *phydev = priv->phydev;
 	unsigned int maccr, dblac, desc_size;
+	ulong data = dev_get_driver_data(dev);
 	ulong start, end;
 	int ret;
 	int i;
@@ -431,7 +433,8 @@ static int ftgmac100_start(struct udevice *dev)
 		FTGMAC100_MACCR_RX_RUNT |
 		FTGMAC100_MACCR_RX_BROADPKT;
 
-	if (device_is_compatible(dev, "aspeed,ast2700-mac") &&
+	if ((data == FTGMAC100_MODEL_AST2700 ||
+	     data == FTGMAC100_MODEL_AST2705) &&
 	    (priv->phydev->interface == PHY_INTERFACE_MODE_RMII ||
 	     priv->phydev->interface == PHY_INTERFACE_MODE_NCSI))
 		maccr |= FTGMAC100_MACCR_RMII_ENABLE;
@@ -819,7 +822,8 @@ static int ftgmac100_of_to_plat(struct udevice *dev)
 
 	if (data == FTGMAC100_MODEL_ASPEED ||
 	    data == FTGMAC100_MODEL_AST2600 ||
-	    data == FTGMAC100_MODEL_AST2700) {
+	    data == FTGMAC100_MODEL_AST2700 ||
+	    data == FTGMAC100_MODEL_AST2705) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 	} else {
@@ -841,6 +845,7 @@ static int ftgmac100_probe(struct udevice *dev)
 {
 	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct ftgmac100_data *priv = dev_get_priv(dev);
+	ulong data = dev_get_driver_data(dev);
 	int ret;
 
 	priv->iobase = (struct ftgmac100 *)pdata->iobase;
@@ -891,7 +896,7 @@ static int ftgmac100_probe(struct udevice *dev)
 	ftgmac_read_hwaddr(dev);
 
 	/* Get sgmii phy driver and initialize the sgmii */
-	if (device_is_compatible(dev, "aspeed,ast2700-mac") &&
+	if (data == FTGMAC100_MODEL_AST2700 &&
 	    pdata->phy_interface == PHY_INTERFACE_MODE_SGMII) {
 		ret = generic_phy_get_by_name(dev, "sgmii", &priv->sgmii);
 		if (ret) {
@@ -942,6 +947,7 @@ static const struct udevice_id ftgmac100_ids[] = {
 	{ .compatible = "aspeed,ast2500-mac", .data = FTGMAC100_MODEL_ASPEED },
 	{ .compatible = "aspeed,ast2600-mac", .data = FTGMAC100_MODEL_AST2600 },
 	{ .compatible = "aspeed,ast2700-mac", .data = FTGMAC100_MODEL_AST2700 },
+	{ .compatible = "aspeed,ast2705-mac", .data = FTGMAC100_MODEL_AST2705 },
 	{}
 };
 
