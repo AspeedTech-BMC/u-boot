@@ -284,6 +284,7 @@ struct test_s {
 	struct parameter_s parm;
 
 	enum chip_version chip;
+	int chip_revision;
 
 	struct {
 		u32 mode;

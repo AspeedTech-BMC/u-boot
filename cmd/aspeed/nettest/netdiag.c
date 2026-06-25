@@ -77,6 +77,7 @@ void net_print_soc_id(struct test_s *obj)
 	} else {
 		printf("SOC: %4s\n", soc_map_table[i].name);
 		obj->chip = soc_map_table[i].chip;
+		obj->chip_revision = (readl(ASPEED_IO_REVISION_ID) >> 16) & 0xff;
 	}
 }
 

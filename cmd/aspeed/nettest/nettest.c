@@ -102,11 +102,8 @@ loop_start:
 			j = memcmp(&rx_pkt_buf[i][ETH_OFFSET_SA], &tx_pkt_buf[i][ETH_OFFSET_SA],
 				   ETH_SIZE_SA);
 			if (j) {
-				printf("\n\n");
-				for (int l = 0; l < rxlen; l++)
-					printf("pkt#%02x[%02x] got:%02x expected:%02x\n",
-					       i, k, rx_pkt_buf[i][l], tx_pkt_buf[i][l]);
 				ret = FAIL_DATA_COMPARE;
+				break;
 			}
 		} else {
 			debug("pkt#%02x: error: %d\n", i, status);
@@ -115,7 +112,8 @@ loop_start:
 		}
 	}
 
-	aspeed_reset_assert(mac_obj->device);
+	if (!(test_obj->chip == AST2705 && test_obj->chip_revision == 0))
+		aspeed_reset_assert(mac_obj->device);
 
 	if ((++k < parm->loop) && ret == 0)
 		goto loop_start;

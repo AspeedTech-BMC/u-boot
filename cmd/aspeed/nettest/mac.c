@@ -511,6 +511,7 @@ void ast2705_clk_set_rgmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
 		break;
 	}
 
+	aspeed_reset_deassert(obj->device);
 	reg = readl(base);
 	reg &= ~(TX_CLK_IO_DLY_SEL | RX_CLK_IO_DLY_SEL);
 	reg |= FIELD_PREP(TX_CLK_IO_DLY_SEL, tx);
@@ -536,6 +537,7 @@ void ast2705_clk_get_rgmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
 		break;
 	}
 
+	aspeed_reset_deassert(obj->device);
 	reg = readl(base);
 	*tx = FIELD_GET(TX_CLK_IO_DLY_SEL, reg);
 	*rx = FIELD_GET(RX_CLK_IO_DLY_SEL, reg);
