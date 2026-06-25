@@ -86,6 +86,9 @@ static int ast2700_i2c_read_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 		cmd = I2CM_PKT_EN;
 	}
 
+	/* add for tbuf wait */
+	udelay(10);
+
 	return ret;
 }
 
@@ -157,6 +160,9 @@ static int ast2700_i2c_write_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 		}
 	}
 
+	/* add for tbuf wait */
+	udelay(10);
+
 	return ret;
 }
 
@@ -194,6 +200,9 @@ static int ast2600_i2c_read_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 		if (isr & I2CM_TX_NAK)
 			return -EREMOTEIO;
 	}
+
+	/* add for tbuf wait */
+	udelay(10);
 
 	return 0;
 }
@@ -244,6 +253,9 @@ static int ast2600_i2c_write_data(struct ast2600_i2c_priv *priv, u8 chip_addr,
 		if (isr & I2CM_TX_NAK)
 			return -EREMOTEIO;
 	}
+
+	/* add for tbuf wait */
+	udelay(10);
 
 	return 0;
 }
