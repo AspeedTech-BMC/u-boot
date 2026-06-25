@@ -808,7 +808,6 @@ static int ftgmac100_of_to_plat(struct udevice *dev)
 	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct ftgmac100_data *priv = dev_get_priv(dev);
 	ulong data = dev_get_driver_data(dev);
-	int ret;
 
 	pdata->iobase = dev_read_addr(dev);
 
@@ -834,10 +833,6 @@ static int ftgmac100_of_to_plat(struct udevice *dev)
 						    0);
 	priv->rgmii_rx_delay = dev_read_u32_default(dev, "rx-internal-delay-ps",
 						    0);
-
-	ret = ftgmac100_set_internal_delay(dev);
-	if (ret)
-		return ret;
 
 	return clk_get_bulk(dev, &priv->clks);
 }
@@ -869,6 +864,10 @@ static int ftgmac100_probe(struct udevice *dev)
 		if (ret)
 			goto out;
 	}
+
+	ret = ftgmac100_set_internal_delay(dev);
+	if (ret)
+		goto out;
 
 	/*
 	 * If DM MDIO is enabled, the MDIO bus will be initialized later in
