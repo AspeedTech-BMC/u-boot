@@ -475,6 +475,7 @@ void ast2705_clk_set_rmii_delay(struct mac_s *obj, int speed, u32 tx, u32 rx)
 	void __iomem *base = obj->device->base + RGMII_DLY_SEL_1G;
 	u32 reg;
 
+	aspeed_reset_deassert(obj->device);
 	reg = readl(base);
 	reg &= ~(RMII_TX_ALIGN_CLK_FALL | RX_CLK_IO_DLY_SEL);
 	if (tx)
@@ -488,6 +489,7 @@ void ast2705_clk_get_rmii_delay(struct mac_s *obj, int speed, u32 *tx, u32 *rx)
 	void __iomem *base = obj->device->base + RGMII_DLY_SEL_1G;
 	u32 reg;
 
+	aspeed_reset_deassert(obj->device);
 	reg = readl(base);
 	*tx = !!(reg & RMII_TX_ALIGN_CLK_FALL);
 	*rx = FIELD_GET(RX_CLK_IO_DLY_SEL, reg);
