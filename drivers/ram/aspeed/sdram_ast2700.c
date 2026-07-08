@@ -1182,6 +1182,9 @@ static int ast2700_sdrammc_get_info(struct udevice *dev, struct ram_info *info)
 		info->size = sdramc->info.size;
 	}
 
+	if (regs->enccfg & 0x1)
+		printf("AES on, ");
+
 	return 0;
 }
 
