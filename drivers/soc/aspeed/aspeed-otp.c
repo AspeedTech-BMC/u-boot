@@ -44,9 +44,11 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define OTP_CMD_OFFSET			0x20
 #ifdef CONFIG_ARCH_ASPEED
-#define OTP_MASTER			OTP_M0
-#else
+/* CA35 */
 #define OTP_MASTER			OTP_M1
+#else
+/* RISCV IBEX */
+#define OTP_MASTER			OTP_M0
 #endif
 
 #define OTP_KEY				0x0
