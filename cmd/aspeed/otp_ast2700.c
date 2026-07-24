@@ -2613,6 +2613,19 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 
 		printf("OTP ECC is enabled (temporarily)\n");
 
+	} else if (!strcmp(argv[0], "disable")) {
+		if (ecc_en == OTP_ECC_DISABLE) {
+			printf("OTP ECC is already disabled\n");
+			return CMD_RET_SUCCESS;
+		}
+
+		/* Set ECC disable */
+		ret = misc_ioctl(otp_dev, SET_ECC_DISABLE, NULL);
+		if (ret)
+			return CMD_RET_FAILURE;
+
+		printf("OTP ECC is disabled (temporarily)\n");
+
 	} else {
 		return CMD_RET_USAGE;
 	}
@@ -2807,6 +2820,6 @@ U_BOOT_CMD(otp, 7, 0,  do_ast_otp,
 	   "otp <dev> info key|rbp|conf|strap|strap-ext\n"
 	   "otp <dev> patch prog <dram_addr> <otp_w_offset> <w_count>\n"
 	   "otp <dev> patch enable pre|post <otp_start_w_offset> <w_count>\n"
-	   "otp <dev> ecc status|enable\n"
+	   "otp <dev> ecc status|enable|disable\n"
 	   "otp <dev> test prov\n"
 	  );

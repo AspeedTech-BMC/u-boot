@@ -8,6 +8,7 @@
 enum otp_ioctl_cmds {
 	GET_ECC_STATUS = 1,
 	SET_ECC_ENABLE,
+	SET_ECC_DISABLE,
 };
 
 enum otp_ecc_codes {
