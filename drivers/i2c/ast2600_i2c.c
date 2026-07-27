@@ -512,6 +512,10 @@ static int ast2600_i2c_probe(struct udevice *dev)
 
 		/* set device specified setting */
 		writel(div_val, &priv->global_regs->clk_divid);
+
+		/* fill fifo configuration */
+		writel(AST2700_I2CCG_FIFO_CFG, &priv->global_regs->fifo_cfg0);
+		writel(AST2700_I2CCG_FIFO_CFG, &priv->global_regs->fifo_cfg1);
 	}
 
 	/* Reset device */

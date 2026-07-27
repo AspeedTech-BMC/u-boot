@@ -54,6 +54,8 @@ struct ast2600_i2c_global_regs {
 	u32 dummy_offset8;
 	u32 global_ctrl;
 	u32 clk_divid;
+	u32 fifo_cfg0;
+	u32 fifo_cfg1;
 };
 
 enum i2c_version {
@@ -168,6 +170,7 @@ enum i2c_version {
 			I2CG_CTRL_NEW_CLK_DIV)
 #define AST2600_I2CCG_DIV_CTRL 0xC6411208
 #define AST2700_I2CCG_DIV_CTRL 0xC6220904
+#define AST2700_I2CCG_FIFO_CFG 0x66666666
 
 #define GET_CLK1_DIV(x) ((x) & 0xff)
 #define GET_CLK2_DIV(x) (((x) >> 8) & 0xff)
