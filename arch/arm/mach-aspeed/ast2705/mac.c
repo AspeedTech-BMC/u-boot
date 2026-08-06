@@ -62,12 +62,11 @@ static uint32_t cal_delay32_ring(struct ast2705_scu1 *scu, uint8_t rgmii_chain)
 	reg |= SCU_FREQ_OSC_ENABLE;
 	writel(reg, base);
 	ret = readl_poll_timeout(base, reg, (reg & SCU_FREQ_DONE), 1000);
-	if (ret < 0)
-		return 0;
-
 	writel(0, base);
 	dbgsel = readl(&scu->rsv_0xC4) & ~SCU_DBGSEL_RING_SEL_MASK;
 	writel(dbgsel, &scu->rsv_0xC4);
+	if (ret < 0)
+		return 0;
 
 	return counter_to_delay_ps(SCU_FREQ_COUNTER(reg));
 }
