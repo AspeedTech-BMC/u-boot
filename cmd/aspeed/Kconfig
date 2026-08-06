@@ -28,7 +28,7 @@ config AST2700_CMD_OTP
 
 config AST2700_CMD_LTPI_V2
 	bool "ASPEED LTPI V2 command"
-	depends on ASPEED_AST2700
+	depends on ASPEED_AST2700 || ASPEED_AST2705
 	select GETOPT
 	default n
 	help
@@ -36,7 +36,7 @@ config AST2700_CMD_LTPI_V2
 
 config AST2700_CMD_LTPI_V1
 	bool "ASPEED LTPI V1 command"
-	depends on ASPEED_AST2700
+	depends on ASPEED_AST2700 || ASPEED_AST2705
 	select GETOPT
 	default n
 	help
