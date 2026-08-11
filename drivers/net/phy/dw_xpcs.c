@@ -22,8 +22,17 @@
 #define DW_VR_XS_PMA_RX_LSTS				0x8020
 #define RX_VALID_0						BIT(12)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_TX_GENCTRL1		0x8031
+#define VBOOST_EN_0						BIT(4)
 #define DW_VR_XS_PMA_MP_12G_16G_TX_GENCTRL2		0x8032
+#define TX0_WIDTH_MASK						GENMASK(9, 8)
+#define TX0_WIDTH(x) \
+		FIELD_PREP(TX0_WIDTH_MASK, x)
+#define WIDTH_10_BIT						0x1
 #define DW_VR_XS_PMA_MP_12G_16G_25G_TX_RATE_CTRL	0x8034
+#define TX0_RATE_MASK						GENMASK(2, 0)
+#define TX0_RATE(x) \
+		FIELD_PREP(TX0_RATE_MASK, x)
+#define BAUD_8							0x3
 #define DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL0		0x8036
 #define TX_EQ_MAIN_MASK						GENMASK(13, 8)
 #define TX_EQ_MAIN(x) \
@@ -33,7 +42,13 @@
 #define TX_EQ_POST(x) \
 		FIELD_PREP(TX_EQ_POST_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_RX_GENCTRL2		0x8052
+#define RX0_WIDTH_MASK						GENMASK(9, 8)
+#define RX0_WIDTH(x) \
+		FIELD_PREP(RX0_WIDTH_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_RX_RATE_CTRL	0x8054
+#define RX0_RATE_MASK						GENMASK(1, 0)
+#define RX0_RATE(x) \
+		FIELD_PREP(RX0_RATE_MASK, x)
 #define DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL0		0x8058
 #define CTLE_BOOST_0_MASK					GENMASK(4, 0)
 #define CTLE_BOOST_0(x) \
@@ -42,10 +57,12 @@
 #define CTLE_POLE_0(x) \
 		FIELD_PREP(CTLE_POLE_0_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_RX_EQ_CTRL4		0x805c
+#define CONT_ADAPT_0						BIT(0)
 #define RX_AD_REQ						BIT(12)
 #define DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL5		0x805d
 #define DW_VR_XS_PMA_MP_16G_RX_CDR_CTRL1		0x8064
 #define DW_VR_XS_PMA_MP_16G_25G_RX_GENCTRL4		0x8068
+#define RX_DFE_BYP_0						BIT(8)
 #define DW_VR_XS_PMA_MP_16G_25G_RX_MISC_CTRL0		0x8069
 #define RX0_MISC_MASK						GENMASK(7, 0)
 #define RX0_MISC(x) \
@@ -55,11 +72,22 @@
 #define RX0_DELTA_IQ(x) \
 		FIELD_PREP(RX0_DELTA_IQ_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_MPLLA_CTRL0		0x8071
+#define MPLLA_MULTIPLIER_MASK					GENMASK(7, 0)
+#define MPLLA_MULTIPLIER(x) \
+		FIELD_PREP(MPLLA_MULTIPLIER_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_MPLLA_CTRL2		0x8073
+#define MPLLA_DIV10_CLK_EN					BIT(9)
+#define MPLLA_DIV16P5_CLK_EN					BIT(10)
 #define DW_VR_XS_PMA_MP_16G_MPLLA_CTRL3			0x8077
 #define MPLLA_BANDWIDTH(x)					(x)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_VCO_CAL_LD0		0x8092
+#define VCO_LD_VAL_0_MASK					GENMASK(12, 0)
+#define VCO_LD_VAL_0(x) \
+		FIELD_PREP(VCO_LD_VAL_0_MASK, x)
 #define DW_VR_XS_PMA_MP_16G_25G_VCO_CAL_REF0		0x8096
+#define VCO_REF_LD_0_MASK					GENMASK(6, 0)
+#define VCO_REF_LD_0(x) \
+		FIELD_PREP(VCO_REF_LD_0_MASK, x)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_MISC_STS		0x8098
 #define RX_ADPT_ACK						BIT(12)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_SRAM		0x809b
@@ -84,8 +112,19 @@
 #define MII_SS5							BIT(5)
 #define MII_SS6							BIT(6)
 #define MII_SS13						BIT(13)
+#define DW_SR_XS_PCS_CTRL2				0x0007
+#define PCS_TYPE_SEL_MASK					GENMASK(3, 0)
+#define PCS_TYPE_SEL(x) \
+		FIELD_PREP(PCS_TYPE_SEL_MASK, x)
+#define SEL_10GBASE_X						0x1
+#define DW_VR_MII_DIG_CTRL1				0x8000
+#define MAC_AUTO_SW						BIT(9)
 #define DW_VR_MII_AN_CTRL				0x8001
 #define MII_AN_INTR_EN						BIT(0)
+#define PCS_MODE_MASK						GENMASK(2, 1)
+#define PCS_MODE(x) \
+		FIELD_PREP(PCS_MODE_MASK, x)
+#define SGMII_MODE						0x2
 #define DW_VR_MII_AN_INTR_STS				0x8002
 #define CL37_ANCMPLT_INTR					BIT(0)
 #define USXG_AN_STS_MASK					GENMASK(14, 8)
@@ -102,6 +141,17 @@
 #define USXG_SPEED_LINK_5G					0x5
 #define USXG_LINK_UP						BIT(6)
 #define USXG_DUPLEX_FULL					BIT(5)
+#define CL37_ANSGM_STS_MASK					GENMASK(4, 1)
+#define CL37_ANSGM_STS(x) \
+		FIELD_GET(CL37_ANSGM_STS_MASK, x)
+#define CL37_ANSGM_STS_SPEED_LINK_MASK				GENMASK(2, 1)
+#define CL37_ANSGM_STS_SPEED_LINK(x) \
+		FIELD_GET(CL37_ANSGM_STS_SPEED_LINK_MASK, x)
+#define CL37_SPEED_LINK_10M					0x0
+#define CL37_SPEED_LINK_100M					0x1
+#define CL37_SPEED_LINK_1000M					0x2
+#define CL37_LINK_UP						BIT(3)
+#define CL37_DUPLEX_FULL					BIT(0)
 
 static int xpcs_vr_reset(struct phy_device *phydev)
 {
@@ -368,14 +418,215 @@ static int xpcs_config_usxgmii(struct phy_device *phydev)
 	return ret;
 }
 
+static int xpcs_config_sgmii(struct phy_device *phydev)
+{
+	int ret, val;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_MPLLA_CTRL0,
+			     MPLLA_MULTIPLIER_MASK,
+			     MPLLA_MULTIPLIER(0x20));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+			    DW_VR_XS_PMA_MP_16G_MPLLA_CTRL3,
+			    MPLLA_BANDWIDTH(0xa03e));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_VCO_CAL_LD0,
+			     VCO_LD_VAL_0_MASK,
+			     VCO_LD_VAL_0(0x540));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_VCO_CAL_REF0,
+			     VCO_REF_LD_0_MASK,
+			     VCO_REF_LD_0(0x2a));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			     CONT_ADAPT_0, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			     TX0_RATE_MASK,
+			     TX0_RATE(BAUD_8));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			     RX0_RATE_MASK,
+			     RX0_RATE(BAUD_8));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_TX_GENCTRL2,
+			     TX0_WIDTH_MASK,
+			     TX0_WIDTH(WIDTH_10_BIT));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_RX_GENCTRL2,
+			     RX0_WIDTH_MASK,
+			     RX0_WIDTH(WIDTH_10_BIT));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_MPLLA_CTRL2,
+			     MPLLA_DIV10_CLK_EN | MPLLA_DIV16P5_CLK_EN,
+			     MPLLA_DIV10_CLK_EN);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_GENCTRL1,
+			     VBOOST_EN_0, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL0,
+			     CTLE_BOOST_0_MASK | CTLE_POLE_0_MASK,
+			     CTLE_BOOST_0(0x6) | CTLE_POLE_0(0));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_MISC_CTRL0,
+			     RX0_MISC_MASK, RX0_MISC(0x6));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_GENCTRL4,
+			     RX_DFE_BYP_0,
+			     RX_DFE_BYP_0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_IQ_CTRL0,
+			     RX0_DELTA_IQ_MASK, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+			    DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL5,
+			    0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+			     DW_SR_XS_PCS_CTRL2,
+			     PCS_TYPE_SEL_MASK,
+			     PCS_TYPE_SEL(SEL_10GBASE_X));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+			     DW_SR_MII_CTRL,
+			     MII_SS13, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = xpcs_vr_reset(phydev);
+	if (ret < 0) {
+		pr_err("VR Reset failed\n");
+		return ret;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+			     DW_VR_XS_PCS_DEBUG_CTRL,
+			     SUPRESS_LOS_DET | RX_DT_EN_CTL,
+			     0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					SR_XS_PCS_CTRL1, val,
+					!(val & RST),
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("Reset done failed\n");
+		return ret;
+	}
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PMAPMD,
+					DW_VR_XS_PMA_RX_LSTS, val,
+					val & RX_VALID_0,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("RX invlaid\n");
+		return ret;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			     TX_EQ_MAIN_MASK, TX_EQ_MAIN(0x28));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			     TX_EQ_POST_MASK, TX_EQ_POST(0));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					MDIO_STAT1, val,
+					val & MDIO_STAT1_LSTATUS,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("RX link up failed\n");
+		return ret;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DW_VR_MII_AN_CTRL,
+			     MII_AN_INTR_EN | PCS_MODE_MASK,
+			     MII_AN_INTR_EN | PCS_MODE(SGMII_MODE));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1,
+			     MAC_AUTO_SW,
+			     MAC_AUTO_SW);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DW_SR_MII_CTRL,
+			     AN_ENABLE, AN_ENABLE);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
 static int xpcs_config(struct phy_device *phydev)
 {
-	if (phydev->interface == PHY_INTERFACE_MODE_10GBASER)
-		xpcs_config_10gbaser(phydev);
-	else if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
-		xpcs_config_usxgmii(phydev);
+	int ret;
 
-	return 0;
+	if (phydev->interface == PHY_INTERFACE_MODE_10GBASER)
+		ret = xpcs_config_10gbaser(phydev);
+	else if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
+		ret = xpcs_config_usxgmii(phydev);
+	else if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
+		ret = xpcs_config_sgmii(phydev);
+	else
+		return -EINVAL;
+
+	return ret;
 }
 
 static int xpcs_usxgmii_nway_status(struct phy_device *phydev)
@@ -437,7 +688,7 @@ static int xpcs_usxgmii_nway_status(struct phy_device *phydev)
 
 	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2,
 			     DW_SR_MII_CTRL,
-			     MII_SS5 | MII_SS5 | MII_SS13, val);
+			     MII_SS5 | MII_SS6 | MII_SS13, val);
 	if (ret < 0)
 		return ret;
 
@@ -480,6 +731,51 @@ static int xpcs_10gbaser_status(struct phy_device *phydev)
 	return ret;
 }
 
+static int xpcs_sgmii_nway_status(struct phy_device *phydev)
+{
+	int ret = 0, val, status;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND2,
+					DW_VR_MII_AN_INTR_STS, val,
+					val & CL37_ANCMPLT_INTR,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("SGMII CL37 Nway failed\n");
+		return ret;
+	}
+
+	/* Clear AN done status */
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+			    DW_VR_MII_AN_INTR_STS,
+			    CL37_ANCMPLT_INTR);
+	if (ret < 0)
+		return ret;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, DW_VR_MII_AN_INTR_STS);
+	if (val < 0)
+		return val;
+
+	status = CL37_ANSGM_STS(val);
+	switch (CL37_ANSGM_STS_SPEED_LINK(status)) {
+	case CL37_SPEED_LINK_10M:
+		phydev->speed = SPEED_10;
+		break;
+	case CL37_SPEED_LINK_100M:
+		phydev->speed = SPEED_100;
+		break;
+	case CL37_SPEED_LINK_1000M:
+		phydev->speed = SPEED_1000;
+		break;
+	default:
+		pr_err("Error Speed\n");
+		break;
+	}
+	phydev->link = !!(status & CL37_LINK_UP);
+	phydev->duplex = !!(status & CL37_DUPLEX_FULL);
+
+	return ret;
+}
+
 static int xpcs_startup(struct phy_device *phydev)
 {
 	int ret;
@@ -488,9 +784,16 @@ static int xpcs_startup(struct phy_device *phydev)
 		ret = xpcs_10gbaser_status(phydev);
 	else if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
 		ret = xpcs_usxgmii_nway_status(phydev);
+	else if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
+		ret = xpcs_sgmii_nway_status(phydev);
 	else
 		return -EINVAL;
 
+	return ret;
+}
+
+static int xpcs_shutdown(struct phy_device *phydev)
+{
 	return 0;
 }
 
@@ -532,5 +835,5 @@ U_BOOT_PHY_DRIVER(dw_xpcs) = {
 	.probe		= xpcs_probe,
 	.config		= xpcs_config,
 	.startup	= xpcs_startup,
-	.shutdown	= NULL,
+	.shutdown	= xpcs_shutdown,
 };
