@@ -60,11 +60,34 @@ static int xgmac_stop_resets_aspeed(struct udevice *dev)
 	struct xgmac_priv *xgmac = dev_get_priv(dev);
 	int ret;
 
-	ret = reset_assert_bulk(&xgmac->reset_bulk);
+	ret = reset_assert(&xgmac->reset_bulk.resets[0]);
 	if (ret < 0)
 		pr_err("xgmac reset assert failed: %d\n", ret);
 
 	return ret;
+}
+
+/* TODO:: Remove from A1 */
+static int xgmac_init_xpcs_sram(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	int val, val1;
+
+	val1 = xgmac->mii->read(xgmac->mii, 0, MDIO_MMD_PCS, 0x8000);
+	val1 |= BIT(1);
+	xgmac->mii->write(xgmac->mii, 0, MDIO_MMD_PCS, 0x8000, val1);
+	val = xgmac->mii->read(xgmac->mii, 0, MDIO_MMD_PMAPMD, 0x809b);
+	if (val < 0)
+		return val;
+	val1 = xgmac->mii->read(xgmac->mii, 0, MDIO_MMD_PCS, 0x8000);
+	val1 &= ~BIT(1);
+	xgmac->mii->write(xgmac->mii, 0, MDIO_MMD_PCS, 0x8000, val1);
+	if (val & 0x01)
+		xgmac->mii->write(xgmac->mii, 0, MDIO_MMD_PMAPMD, 0x809b, 0x0002);
+
+	mdelay(20);
+
+	return 0;
 }
 
 static int xgmac_start_resets_aspeed(struct udevice *dev)
@@ -72,19 +95,16 @@ static int xgmac_start_resets_aspeed(struct udevice *dev)
 	struct xgmac_priv *xgmac = dev_get_priv(dev);
 	int ret;
 
-	ret = reset_assert_bulk(&xgmac->reset_bulk);
-	if (ret < 0) {
-		pr_err("xgmac reset assert failed: %d", ret);
-		return ret;
-	}
-
-	udelay(2);
-
 	ret = reset_deassert_bulk(&xgmac->reset_bulk);
 	if (ret < 0) {
 		pr_err("xgmac reset de-assert failed: %d", ret);
 		return ret;
 	}
+
+	ret = xgmac_init_xpcs_sram(dev);
+	if (ret < 0)
+		pr_err("%s xgmac_init_xpcs_sram() failed: %d\n",
+		       dev->name, ret);
 
 	return 0;
 }
