@@ -54,6 +54,13 @@ config ASPEED_PALLADIUM
 	  This is mainly for internal verification and investigation
 	  on HW design. If not sure, say N.
 
+config ASPEED_ROUTE_UART5_TO_UART1
+	bool "Route UART5 console to UART1 pins"
+	depends on ASPEED_AST2500
+	help
+	  Route UART5 console to TXD1/RXD1 pins instead of TXD5/RXD5 pins.
+	  Does not affect the debug uart functionality.
+
 config ASPEED_SSP_RERV_MEM
 	hex "Reserve memory for SSP"
 	default 0x0
