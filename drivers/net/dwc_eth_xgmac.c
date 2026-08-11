@@ -335,8 +335,33 @@ static int xgmac_set_xgmii_speed_10g(struct udevice *dev)
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
-	/* FPGA -> 5G */
 	val = XGMAC_MAC_CONF_SS_10G_XGMII << XGMAC_MAC_CONF_SS_SHIFT;
+	writel(val, &xgmac->mac_regs->tx_configuration);
+
+	return 0;
+}
+
+static int xgmac_set_xgmii_speed_5g(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	u32 val;
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	val = XGMAC_MAC_CONF_SS_5G_XGMII << XGMAC_MAC_CONF_SS_SHIFT;
+	writel(val, &xgmac->mac_regs->tx_configuration);
+
+	return 0;
+}
+
+static int xgmac_set_xgmii_speed_2_5g(struct udevice *dev)
+{
+	struct xgmac_priv *xgmac = dev_get_priv(dev);
+	u32 val;
+
+	debug("%s(dev=%p):\n", __func__, dev);
+
+	val = XGMAC_MAC_CONF_SS_2_5G_XGMII << XGMAC_MAC_CONF_SS_SHIFT;
 	writel(val, &xgmac->mac_regs->tx_configuration);
 
 	return 0;
@@ -389,6 +414,14 @@ static int xgmac_adjust_link(struct udevice *dev)
 	case SPEED_10000:
 		en_calibration = false;
 		ret = xgmac_set_xgmii_speed_10g(dev);
+		break;
+	case SPEED_5000:
+		en_calibration = false;
+		ret = xgmac_set_xgmii_speed_5g(dev);
+		break;
+	case SPEED_2500:
+		en_calibration = false;
+		ret = xgmac_set_xgmii_speed_2_5g(dev);
 		break;
 	case SPEED_1000:
 		en_calibration = true;
