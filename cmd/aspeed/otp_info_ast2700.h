@@ -813,5 +813,4 @@ static const struct otprbp_info a2_rbp_info[] = {
 	{ 10, 128, "Caliptra fuse: RUNTIME SVN" },
 	{ 18, 4, "Caliptra fuse: KEY MANIFEST PK HASH MASK" },
 	{ 19, 32, "Caliptra fuse: LMS REVOCATION" },
-	{ 21, 128, "SoC FMC hardware SVN" },
 };

@@ -840,9 +840,15 @@ static int otp_print_rbp_info(void)
 	u16 OTPRBP[OTP_RBP_REGION_SIZE];
 	u32 w_offset;
 	u32 length;
+	int ret;
 
-	for (int i = 0; i < OTP_RBP_REGION_SIZE; i++)
-		otp_read_rbp(i, &OTPRBP[i]);
+	for (int i = 0; i < OTP_RBP_REGION_SIZE; i++) {
+		ret = otp_read_rbp(i, &OTPRBP[i]);
+		if (ret) {
+			printf("OTP read rbp failed, ret=%d\n", ret);
+			return ret;
+		}
+	}
 
 	printf("W   bit-length            Description                       Value\n");
 	printf("__________________________________________________________________________\n");
@@ -870,9 +876,15 @@ static int otp_print_conf_info(void)
 	u32 w_offset;
 	u32 bit_offset;
 	u32 otp_value;
+	int ret;
 
-	for (int i = 0; i < 32; i++)
-		otp_read_conf(i, &OTPCFG[i]);
+	for (int i = 0; i < 32; i++) {
+		ret = otp_read_conf(i, &OTPCFG[i]);
+		if (ret) {
+			printf("OTP read conf failed, ret=%d\n", ret);
+			return ret;
+		}
+	}
 
 	printf("W    BIT        Value       Description\n");
 	printf("__________________________________________________________________________\n");
@@ -1312,8 +1324,14 @@ static void otp_print_key(u32 *data)
 static void otp_print_key_info(void)
 {
 	u16 buf[OTP_SEC_REGION_SIZE];
+	int ret;
 
-	otp_read_secure_multi(0, buf, OTP_SEC_REGION_SIZE);
+	ret = otp_read_secure_multi(0, buf, OTP_SEC_REGION_SIZE);
+	if (ret) {
+		printf("OTP read secure failed, ret=%d\n", ret);
+		return;
+	}
+
 	otp_print_key((u32 *)buf);
 }
 
