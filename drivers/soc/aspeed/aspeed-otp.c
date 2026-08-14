@@ -215,11 +215,75 @@ enum aspeed_otp_master_id {
 	OTP_MID_MAX,
 };
 
+#ifdef CONFIG_ARCH_ASPEED
+struct otp_region_ecc {
+	u32	start;
+	u32	end;
+	bool	ecc_supported;
+	bool	ecc_en;
+};
+#endif
+
 struct aspeed_otp {
 	u8 *base;
 	struct clk clk;
 	int gbl_ecc_en;
+#ifdef CONFIG_ARCH_ASPEED
+	struct otp_region_ecc region_ecc_tbl[OTP_REGION_ID_MAX];
+#endif
 };
+
+#ifdef CONFIG_ARCH_ASPEED
+/*
+ * Default per-region ECC policy, applied when otp->gbl_ecc_en (force ECC) is
+ * off. Copied into each aspeed_otp instance's region_ecc_tbl at probe time,
+ * since otp0 (aspeed,ast2700-otp) and otp1 (aspeed,ast1700-otp) are two
+ * independent chips and must not share runtime ECC policy state.
+ * OTPRBP/OTPSTRAP don't support ECC in hardware, so ecc_supported is false
+ * and ecc_en can never be set for them, even by force. OTPSTRAPEXT does
+ * support ECC, unlike OTPSTRAP.
+ *
+ * Only CA35 exposes GET_ECC_POLICY/SET_ECC_POLICY (see aspeed_otp_ioctl()),
+ * so RISC-V/IBEX has no way to change the per-region policy at runtime and
+ * gets the plain gbl_ecc_en check below instead, to avoid paying for this
+ * table in size-constrained SPL builds.
+ */
+static const struct otp_region_ecc otp_region_ecc_defaults[OTP_REGION_ID_MAX] = {
+	[OTP_REGION_ID_ROM]      = { ROM_REGION_START_ADDR,      ROM_REGION_END_ADDR,      true,  true  },
+	[OTP_REGION_ID_RBP]      = { RBP_REGION_START_ADDR,      RBP_REGION_END_ADDR,      false, false },
+	[OTP_REGION_ID_CFG]      = { CONF_REGION_START_ADDR,     CONF_REGION_END_ADDR,     true,  false },
+	[OTP_REGION_ID_STRAP]    = { STRAP_REGION_START_ADDR,    STRAP_REGION_END_ADDR,    false, false },
+	[OTP_REGION_ID_STRAPEXT] = { STRAPEXT_REGION_START_ADDR, STRAPEXT_REGION_END_ADDR, true,  false },
+	[OTP_REGION_ID_USR]      = { USER_REGION_START_ADDR,     USER_REGION_END_ADDR,     true,  false },
+	[OTP_REGION_ID_SEC]      = { SEC_REGION_START_ADDR,      SEC_REGION_END_ADDR,      true,  false },
+	[OTP_REGION_ID_CAL]      = { CAL_REGION_START_ADDR,      CAL_REGION_END_ADDR,      true,  false },
+	[OTP_REGION_ID_PUF]      = { SW_PUF_REGION_START_ADDR,   HW_PUF_REGION_END_ADDR,   true,  true  },
+};
+
+static bool otp_region_ecc_active(struct aspeed_otp *otp, u32 offset)
+{
+	struct otp_region_ecc *region;
+	int i;
+
+	for (i = 0; i < OTP_REGION_ID_MAX; i++) {
+		region = &otp->region_ecc_tbl[i];
+		if (offset < region->start || offset >= region->end)
+			continue;
+
+		if (!region->ecc_supported)
+			return false;
+
+		return otp->gbl_ecc_en || region->ecc_en;
+	}
+
+	return false;
+}
+#else
+static bool otp_region_ecc_active(struct aspeed_otp *otp, u32 offset)
+{
+	return otp->gbl_ecc_en;
+}
+#endif
 
 static void otp_unlock(struct udevice *dev)
 {
@@ -272,7 +336,7 @@ static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 	struct aspeed_otp *otp = dev_get_priv(dev);
 	int ret;
 
-	writel(otp->gbl_ecc_en, otp->base + OTP_ECC_EN);
+	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(offset, otp->base + OTP_ADDR);
 	writel(OTP_CMD_READ, otp->base + OTP_CMD);
 	ret = wait_complete(dev);
@@ -286,7 +350,7 @@ int otp_prog_data(struct udevice *dev, u32 offset, u16 data)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 
-	writel(otp->gbl_ecc_en, otp->base + OTP_ECC_EN);
+	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(offset, otp->base + OTP_ADDR);
 	writel(data, otp->base + OTP_WDATA_0);
 	writel(OTP_CMD_PROG, otp->base + OTP_CMD);
@@ -298,7 +362,7 @@ int otp_prog_multi_data(struct udevice *dev, u32 offset, u32 *data, int count)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 
-	writel(otp->gbl_ecc_en, otp->base + OTP_ECC_EN);
+	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(offset, otp->base + OTP_ADDR);
 	for (int i = 0; i < count; i++)
 		writel(data[i], otp->base + OTP_WDATA_0 + 4 * i);
@@ -353,10 +417,20 @@ static int aspeed_otp_ecc_en(struct udevice *dev)
 	return 0;
 }
 
+static int aspeed_otp_ecc_dis(struct udevice *dev)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+
+	otp->gbl_ecc_en = 0;
+
+	return 0;
+}
+
 static int aspeed_otp_ioctl(struct udevice *dev, unsigned long request,
 			    void *buf)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
+	struct otp_ecc_policy *policy;
 	int *data = (int *)buf;
 	int ret = 0;
 
@@ -369,6 +443,26 @@ static int aspeed_otp_ioctl(struct udevice *dev, unsigned long request,
 		break;
 	case SET_ECC_ENABLE:
 		ret = aspeed_otp_ecc_en(dev);
+		break;
+	case SET_ECC_DISABLE:
+		ret = aspeed_otp_ecc_dis(dev);
+		break;
+	case GET_ECC_POLICY:
+		policy = (struct otp_ecc_policy *)buf;
+		if (policy->region >= OTP_REGION_ID_MAX)
+			return -EINVAL;
+
+		policy->ecc_en = otp->region_ecc_tbl[policy->region].ecc_en;
+		policy->ecc_supported = otp->region_ecc_tbl[policy->region].ecc_supported;
+		break;
+	case SET_ECC_POLICY:
+		policy = (struct otp_ecc_policy *)buf;
+		if (policy->region >= OTP_REGION_ID_MAX)
+			return -EINVAL;
+		if (policy->ecc_en && !otp->region_ecc_tbl[policy->region].ecc_supported)
+			return -EINVAL;
+
+		otp->region_ecc_tbl[policy->region].ecc_en = !!policy->ecc_en;
 		break;
 	default:
 		break;
@@ -407,6 +501,9 @@ static int aspeed_otp_probe(struct udevice *dev)
 	int rc;
 
 	otp->base = (u8 *)devfdt_get_addr(dev);
+#ifdef CONFIG_ARCH_ASPEED
+	memcpy(otp->region_ecc_tbl, otp_region_ecc_defaults, sizeof(otp->region_ecc_tbl));
+#endif
 
 	otp_unlock(dev);
 
