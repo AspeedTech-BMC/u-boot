@@ -551,7 +551,7 @@ static u32 ast2700_soc0_get_bclk_rate(struct ast2700_scu0 *scu)
 #define SCU_CLKSEL1_MPHYCLK_DIV_MASK		GENMASK(7, 0)
 static u32 ast2700_soc0_get_mphyclk_rate(struct ast2700_scu0 *scu)
 {
-	int div = readl(&scu->mphyclk_para) & SCU_CLKSEL1_BCLK_DIV_MASK;
+	int div = readl(&scu->mphyclk_para) & SCU_CLKSEL1_MPHYCLK_DIV_MASK;
 	int clk_sel;
 	u32 rate;
 
