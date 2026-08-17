@@ -131,6 +131,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #define OTP_PMC				0x400
 #define OTP_DAP				0x500
 
+#define OTP_DAP_CFG_RQ			0x538
+
 /* OTP status: [0] */
 #define OTP_STS_IDLE			0x0
 #define OTP_STS_BUSY			0x1
@@ -142,6 +144,15 @@ DECLARE_GLOBAL_DATA_PTR;
 #define OTP_STS_CMP_FAIL		0x2
 #define OTP_STS_REGION_FAIL		0x3
 #define OTP_STS_MASTER_FAIL		0x4
+
+/*
+ * OTP_DBG01 ECC status: [5] single-bit error (corrected), [4:0] ECC syndrome
+ *   S[5]=0, S[4:0]=0    -> no error
+ *   S[5]=0, S[4:0]!=0   -> dual-bit error in Data or ECC[4:0] (uncorrectable)
+ *   S[5]=1, S[4:0]!=0   -> single-bit error in Data or ECC[4:0] (corrected)
+ */
+#define OTP_ECC_STS_SINGLE_ERR		BIT(5)
+#define OTP_ECC_STS_SYNDROME(x)		((x) & GENMASK(4, 0))
 
 /* OTP ECC EN */
 #define ECC_ENABLE			0x1
@@ -203,6 +214,7 @@ enum otp_error_code {
 	OTP_CMD_ERR_CMP_FAIL,       /* compare mismatch */
 	OTP_CMD_ERR_REGION_FAIL,    /* region write/read protected */
 	OTP_CMD_ERR_MASTER_FAIL,    /* master protection error */
+	OTP_ECC_ERR_DUAL,           /* uncorrectable dual-bit ECC error */
 };
 
 enum aspeed_otp_master_id {
@@ -331,17 +343,66 @@ static int wait_complete(struct udevice *dev)
 	}
 }
 
+#ifdef CONFIG_ARCH_ASPEED
+static int otp_check_ecc_status(struct udevice *dev)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+	u32 status, addr, syndrome;
+
+	status = readl(otp->base + OTP_DBG01);
+	syndrome = OTP_ECC_STS_SYNDROME(status);
+
+	if (!syndrome)
+		return 0;
+
+	addr = readl(otp->base + OTP_ADDR);
+
+	if (status & OTP_ECC_STS_SINGLE_ERR) {
+		/*
+		 * printf("\n%s: single-bit ECC error corrected, addr:0x%x, syndrome:0x%x\n",
+		 *        __func__, addr, syndrome);
+		 */
+		return 0;
+	}
+
+	printf("\n%s: uncorrectable dual-bit ECC error, addr:0x%x, syndrome:0x%x\n",
+	       __func__, addr, syndrome);
+	return -OTP_ECC_ERR_DUAL;
+}
+#endif
+
+static void otp_ecc_cfg(struct udevice *dev, bool ecc_en)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+
+	writel(ecc_en, otp->base + OTP_ECC_EN);
+#ifdef CONFIG_ARCH_ASPEED
+	/* Self config or auto config */
+	writel(ecc_en ? 0x4 : 0x0, otp->base + OTP_PMC_CQ);
+	/* Clearing OTP_PMC_CQ auto-reverts OTP_DAP_CFG_RQ, no explicit write needed to disable */
+	if (ecc_en)
+		writel(0x40008, otp->base + OTP_DAP_CFG_RQ);
+#endif
+}
+
 static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 	int ret;
+	bool ecc_en = otp_region_ecc_active(otp, offset);
 
-	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(offset, otp->base + OTP_ADDR);
+	otp_ecc_cfg(dev, ecc_en);
+
 	writel(OTP_CMD_READ, otp->base + OTP_CMD);
 	ret = wait_complete(dev);
 	if (!ret)
 		data[0] = readl(otp->base + OTP_RDATA);
+
+#ifdef CONFIG_ARCH_ASPEED
+	if (!ret && ecc_en)
+		ret = otp_check_ecc_status(dev);
+#endif
 
 	return ret;
 }
@@ -351,6 +412,8 @@ int otp_prog_data(struct udevice *dev, u32 offset, u16 data)
 	struct aspeed_otp *otp = dev_get_priv(dev);
 
 	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
+	writel(0x0, otp->base + OTP_PMC_CQ);
+
 	writel(offset, otp->base + OTP_ADDR);
 	writel(data, otp->base + OTP_WDATA_0);
 	writel(OTP_CMD_PROG, otp->base + OTP_CMD);
@@ -363,6 +426,8 @@ int otp_prog_multi_data(struct udevice *dev, u32 offset, u32 *data, int count)
 	struct aspeed_otp *otp = dev_get_priv(dev);
 
 	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
+	writel(0x0, otp->base + OTP_PMC_CQ);
+
 	writel(offset, otp->base + OTP_ADDR);
 	for (int i = 0; i < count; i++)
 		writel(data[i], otp->base + OTP_WDATA_0 + 4 * i);
