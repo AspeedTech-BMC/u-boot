@@ -10,6 +10,7 @@
 #include <asm/io.h>
 #include <env.h>
 #include <env_internal.h>
+#include <linux/bitfield.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -42,7 +43,11 @@ int arch_misc_init(void)
 		u32 strap = readl(ASPEED_IO_HW_STRAP1);
 
 		if (strap & SCU_IO_HWSTRAP_RECOVERY) {
-			if (strap & SCU_IO_HWSTRAP_MAC) {
+			uint8_t recovery;
+
+			recovery = FIELD_GET(SCU_IO_HWSTRAP_RECOVERY_MASK,
+					     strap);
+			if (recovery == SCU_IO_HWSTRAP_MAC) {
 				env_set("boot_device", "mac");
 			}
 		} else if (strap & SCU_IO_HWSTRAP_EMMC) {
