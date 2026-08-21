@@ -42,22 +42,22 @@ static uint32_t cal_delay32_ring(struct ast2705_scu1 *scu, uint8_t rgmii_chain)
 	uint32_t reg, dbgsel;
 	int ret;
 
-	writel(0x1c, base);
+	writel(0x34, base);
 	ret = readl_poll_timeout(base, reg, ((reg & SCU_FREQ_COUNTER_MASK) == 0), 50);
 	if (ret < 0)
 		return 0;
 
-	reg = SCU_FREQ_RING_ENABLE | SCU_FREQ_RING_STG(31);
+	reg = 0;
 	if (rgmii_chain) {
 		reg |= SCU_FREQ_SELECT_RGMII;
 		dbgsel = readl(&scu->rsv_0xC4) & ~SCU_DBGSEL_RING_SEL_MASK;
 		dbgsel |= SCU_DBGSEL_RING_SEL(rgmii_chain);
 		writel(dbgsel, &scu->rsv_0xC4);
 	} else {
-		reg |= SCU_FREQ_SELECT_DLY32;
+		reg |= SCU_FREQ_RING_ENABLE | SCU_FREQ_SELECT_DLY32 | SCU_FREQ_RING_STG(31);
+		writel(reg, base);
+		mdelay(1);
 	}
-	writel(reg, base);
-	mdelay(1);
 
 	reg |= SCU_FREQ_OSC_ENABLE;
 	writel(reg, base);
@@ -165,11 +165,6 @@ static void mac_controller_init(struct ast2705_scu1 *scu, uint32_t index)
 	uintptr_t base = mac_base(index);
 	uint32_t reg, dblac, desc_size;
 
-	mac_rgmii_pin(scu, index);
-	mac_reset_deassert(scu, index);
-	mac_clk_enable(scu, index);
-	mac_set_freq(scu);
-
 	writel(0, base + IER);
 
 	writel(((dma_addr_t)&txdes) & 0xFFFFFFFF, base + TXR_BADR);
@@ -252,16 +247,31 @@ static void set_rgmii_delay(uint32_t tx, uint32_t rx, uint32_t index, uintptr_t 
 
 	reg &= ~mask;
 	reg |= FIELD_PREP(TX_CLK_IO_DLY_SEL, tx);
-	reg |= FIELD_PREP(RX_CLK_IO_DLY_SEL, rx) << 8;
+	reg |= FIELD_PREP(RX_CLK_IO_DLY_SEL, rx);
 
 	writel(reg, target);
 }
 
-static void set_rgmii_1g_delay(uint32_t tx, uint32_t rx, uint32_t index, bool freq_set)
+static void set_rgmii_1g_delay(uint32_t tx, uint32_t rx, uint32_t index)
 {
 	uintptr_t base = mac_base(index);
-	uintptr_t target = freq_set ? (uintptr_t)(base + RGMII_DLY_SEL_10M) :
-				      (uintptr_t)(base + RGMII_DLY_SEL_1G);
+	uintptr_t target = (uintptr_t)(base + RGMII_DLY_SEL_1G);
+
+	set_rgmii_delay(tx, rx, index, target);
+}
+
+static void set_rgmii_100m_delay(uint32_t tx, uint32_t rx, uint32_t index)
+{
+	uintptr_t base = mac_base(index);
+	uintptr_t target = (uintptr_t)(base + RGMII_DLY_SEL_100M);
+
+	set_rgmii_delay(tx, rx, index, target);
+}
+
+static void set_rgmii_10m_delay(uint32_t tx, uint32_t rx, uint32_t index)
+{
+	uintptr_t base = mac_base(index);
+	uintptr_t target = (uintptr_t)(base + RGMII_DLY_SEL_10M);
 
 	set_rgmii_delay(tx, rx, index, target);
 }
@@ -370,15 +380,29 @@ static void find_rgmii_delay(uint32_t index)
 {
 	struct ast2705_scu1 *scu = (struct ast2705_scu1 *)ASPEED_IO_SCU_BASE;
 	uint32_t rx, tx_en, tx_dis, rx_en, rx_dis;
-	uint32_t tx_start, tx_end;
+	uint32_t tx_start, tx_end, rx_start, rx_end;
 	uint32_t tx_average_delay, rx_average_delay;
-	uint32_t dly32_average_delay = 0;
 	int32_t rx_init_delay = 0, tx_init_delay = 0;
 	uint8_t rgmii_chain;
 	uint8_t result[32];
 
-	if (check_calibration_delay(scu, index))
+	mac_reset_deassert(scu, index);
+
+	if (check_calibration_delay(scu, index)) {
+		mac_reset_assert(scu, index);
 		return;
+	}
+
+	/* TODO:: Remove it when io driving driver is ready */
+	writel(0x20002, 0x14c025cc);
+	writel(0x20002, 0x14c025d0);
+	writel(0x20002, 0x14c025d4);
+
+	mac_rgmii_pin(scu, index);
+	mac_clk_enable(scu, index);
+	mac_set_freq(scu);
+	mac_controller_init(scu, index);
+	mac_set_loopback(index, true);
 
 	/* TODO:: Confirm the real chip */
 	tx_init_delay = index ? -500 : 0;
@@ -387,22 +411,28 @@ static void find_rgmii_delay(uint32_t index)
 
 	rgmii_chain = index ? SCU_DBGSEL_RING_SEL_RGMII1_TX :
 			      SCU_DBGSEL_RING_SEL_RGMII0_TX;
-	set_rgmii_1g_delay(0, 0, index, true);
+	set_rgmii_1g_delay(0, 0, index);
 	tx_start = cal_delay32_ring(scu, rgmii_chain);
-	set_rgmii_1g_delay(63, 0, index, true);
+	set_rgmii_1g_delay(63, 0, index);
 	tx_end = cal_delay32_ring(scu, rgmii_chain);
+
+	rgmii_chain = index ? SCU_DBGSEL_RING_SEL_RGMII1_RX :
+			      SCU_DBGSEL_RING_SEL_RGMII0_RX;
+	set_rgmii_1g_delay(0, 0, index);
+	rx_start = cal_delay32_ring(scu, rgmii_chain);
+	set_rgmii_1g_delay(0, 31, index);
+	rx_end = cal_delay32_ring(scu, rgmii_chain);
 
 	tx_average_delay = (tx_end - tx_start) / 126;
 	if (tx_average_delay == 0)
-		return;
+		goto out;
 
-	dly32_average_delay = cal_delay32_ring(scu, 0);
-	/* TODO:: Confirm the real chip */
-	if (index)
-		rx_average_delay = (dly32_average_delay * 1778460) / 1000000;
-	else
-		rx_average_delay = (dly32_average_delay * 1926404) / 1000000;
+	rx_average_delay = (rx_end - rx_start) / 62;
+	if (rx_average_delay == 0)
+		goto out;
 
+	mac_reset_assert(scu, index);
+	mac_reset_deassert(scu, index);
 	mac_controller_init(scu, index);
 	mac_set_loopback(index, true);
 	prepare_tx_packet(tx_pkt_buf);
@@ -410,9 +440,8 @@ static void find_rgmii_delay(uint32_t index)
 
 	/* TODO:: Confirm the real chip */
 	tx_en = (2000 - rx_init_delay) / tx_average_delay;
-
 	for (rx = 0; rx < 32; rx++) {
-		set_rgmii_1g_delay(tx_en, rx, index, false);
+		set_rgmii_1g_delay(tx_en, rx, index);
 		result[rx] = packet_check(index);
 	}
 
@@ -422,14 +451,16 @@ static void find_rgmii_delay(uint32_t index)
 	rx_dis = find_rx_center(result) + 1;
 	rx_en = rx_dis + 2000 / rx_average_delay;
 
+	set_rgmii_1g_delay(0, 0, index);
+	set_rgmii_100m_delay(tx_en, rx_en, index);
+	set_rgmii_10m_delay(tx_en, rx_en, index);
+	record_rgmii_delay(scu, index, tx_dis, tx_en, rx_dis, rx_en,
+			   tx_average_delay, rx_average_delay);
+
+out:
 	mac_set_loopback(index, false);
 	mac_clk_disable(scu, index);
 	mac_reset_assert(scu, index);
-
-	set_rgmii_delay(tx_en, rx_en, index, (uintptr_t)(mac_base(index) + RGMII_DLY_SEL_10M));
-	set_rgmii_delay(tx_en, rx_en, index, (uintptr_t)(mac_base(index) + RGMII_DLY_SEL_100M));
-	record_rgmii_delay(scu, index, tx_dis, tx_en, rx_dis, rx_en,
-			   tx_average_delay, rx_average_delay);
 }
 
 void mac_init(void)
