@@ -20,7 +20,7 @@
 		xgmac: ethernet@140a0000 {
 			compatible = "aspeed,ast2700-dwxgmac", "snps,dwxgmac-2.10", "snps,dwxgmac";
 			reg = <0x0 0x140a0000 0x0 0x8000>;
-			phy-mode = "10gbase-r";
+			phy-mode = "usxgmii";
 			clocks = <&soc1_clk SCU1_CLK_GATE_MAC2CLK>;
 			clock-names = "stmmaceth";
 			resets = <&soc1_rst SCU1_RESET_MAC2>,
