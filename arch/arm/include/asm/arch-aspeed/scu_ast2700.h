@@ -603,7 +603,7 @@ struct ast2705_scu1 {
 	uint32_t clk_sel2_secure1;	/* 0x2B4 */
 	uint32_t clk_sel2_secure2;	/* 0x2B8 */
 	uint32_t clk_sel2_secure3;	/* 0x2BC */
-	uint32_t rsv_0x2C0[48];		/* 0x2C0 ~ 0x2DC */
+	uint32_t rsv_0x2C0[12];		/* 0x2C0 ~ 0x2EC */
 	uint32_t extrst_sel1;		/* 0x2F0 */
 	uint32_t extrst_sel2;		/* 0x2F4 */
 	uint32_t extrst_sel3;		/* 0x2F8 */
