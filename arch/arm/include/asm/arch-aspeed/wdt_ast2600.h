@@ -23,8 +23,8 @@
 #define WDT_CTRL_2ND_BOOT		BIT(7)
 #define WDT_CTRL_RESET_MODE_MASK	GENMASK(6, 5)
 #define WDT_CTRL_RESET_MODE_SHIFT	5
-#define WDT_CTRL_CLK1MHZ		BIT(4)
-#define WDT_CTRL_RESET			BIT(1)
+#define WDT_CTRL_RESET_WDT		BIT(4)
+#define WDT_CTRL_RESET_SYS		BIT(1)
 #define WDT_CTRL_EN			BIT(0)
 
 /* bit-fields of WDT reset mask1 register */

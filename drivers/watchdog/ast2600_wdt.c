@@ -52,7 +52,8 @@ static int ast2600_wdt_start(struct udevice *dev, u64 timeout_ms, ulong flags)
 	/* WDT counts in the 1MHz frequency, namely 1us */
 	priv->data->wdt_writel((u32)(timeout_ms * 1000), &wdt->counter_reload_val);
 	priv->data->wdt_writel(WDT_COUNTER_RESTART_VAL, &wdt->counter_restart);
-	priv->data->wdt_writel(WDT_CTRL_EN | WDT_CTRL_RESET, &wdt->ctrl);
+	priv->data->wdt_writel(WDT_CTRL_EN | WDT_CTRL_RESET_SYS |
+			       WDT_CTRL_RESET_WDT, &wdt->ctrl);
 
 	return 0;
 }
