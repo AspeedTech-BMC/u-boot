@@ -13,13 +13,23 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 
+/*
+ * Control register of the AST2700 ABR watchdog. Bit 0 is its enable bit,
+ * same layout as the regular watchdog instances.
+ */
+#define AST2700_WDT_ABR_CTRL		((void __iomem *)0x14c3740cUL)
+
 struct aspeed_wdt_data {
 	void (*wdt_writel)(u32 val, void __iomem *addr);
+	/* ABR watchdog control register, NULL if the SoC has no ABR watchdog */
+	void __iomem *abr_ctrl;
 };
 
 struct ast2600_wdt_priv {
 	struct ast2600_wdt *regs;
 	struct aspeed_wdt_data *data;
+	/* the ABR watchdog is already supervising the boot */
+	bool abr_armed;
 };
 
 static void wdt_writel_normal(u32 val, void __iomem *addr);
@@ -31,6 +41,7 @@ static const struct aspeed_wdt_data ast2600_wdt_data = {
 
 static const struct aspeed_wdt_data ast2700_wdt_data = {
 	.wdt_writel = wdt_writel_delay,
+	.abr_ctrl = AST2700_WDT_ABR_CTRL,
 };
 
 static void wdt_writel_normal(u32 val, void __iomem *addr)
@@ -44,7 +55,7 @@ static void wdt_writel_delay(u32 val, void __iomem *addr)
 	udelay(5);
 }
 
-static int ast2600_wdt_start(struct udevice *dev, u64 timeout_ms, ulong flags)
+static void ast2600_wdt_arm(struct udevice *dev, u64 timeout_ms)
 {
 	struct ast2600_wdt_priv *priv = dev_get_priv(dev);
 	struct ast2600_wdt *wdt = priv->regs;
@@ -54,6 +65,21 @@ static int ast2600_wdt_start(struct udevice *dev, u64 timeout_ms, ulong flags)
 	priv->data->wdt_writel(WDT_COUNTER_RESTART_VAL, &wdt->counter_restart);
 	priv->data->wdt_writel(WDT_CTRL_EN | WDT_CTRL_RESET_SYS |
 			       WDT_CTRL_RESET_WDT, &wdt->ctrl);
+}
+
+static int ast2600_wdt_start(struct udevice *dev, u64 timeout_ms, ulong flags)
+{
+	struct ast2600_wdt_priv *priv = dev_get_priv(dev);
+
+	/*
+	 * The ABR watchdog is already supervising the boot. Leave the reset
+	 * handling to it rather than arming a second watchdog. expire_now()
+	 * bypasses this, so sysreset keeps working.
+	 */
+	if (priv->abr_armed)
+		return -EBUSY;
+
+	ast2600_wdt_arm(dev, timeout_ms);
 
 	return 0;
 }
@@ -80,13 +106,10 @@ static int ast2600_wdt_reset(struct udevice *dev)
 
 static int ast2600_wdt_expire_now(struct udevice *dev, ulong flags)
 {
-	int ret;
 	struct ast2600_wdt_priv *priv = dev_get_priv(dev);
 	struct ast2600_wdt *wdt = priv->regs;
 
-	ret = ast2600_wdt_start(dev, 1, flags);
-	if (ret)
-		return ret;
+	ast2600_wdt_arm(dev, 1);
 
 	while (readl(&wdt->ctrl) & WDT_CTRL_EN)
 		;
@@ -123,6 +146,12 @@ static int ast2600_wdt_probe(struct udevice *dev)
 	struct ast2600_wdt_priv *priv = dev_get_priv(dev);
 
 	priv->data = (struct aspeed_wdt_data *)dev_get_driver_data(dev);
+
+	if (priv->data->abr_ctrl && (readl(priv->data->abr_ctrl) & WDT_CTRL_EN)) {
+		printf("WDT:   ABR watchdog armed, not starting %s\n",
+		       dev->name);
+		priv->abr_armed = true;
+	}
 
 	debug("%s() wdt%u\n", __func__, dev_seq(dev));
 	ast2600_wdt_stop(dev);

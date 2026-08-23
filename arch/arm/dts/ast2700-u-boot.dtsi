@@ -58,3 +58,7 @@
 &soc1_rst {
 	bootph-all;
 };
+
+&wdt0 {
+	timeout-sec = <30>;
+};
