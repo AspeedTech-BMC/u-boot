@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+/dts-v1/;
+
+#include "ast2705-evb.dts"
+
+/ {
+	model = "AST2705 EVB w/ NCSI";
+};
+
+&mac0 {
+	status = "okay";
+	phy-mode = "NC-SI";
+	use-ncsi;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii0_default>;
+	/delete-property/phy-handle;
+};
+
+&mac1 {
+	status = "okay";
+	phy-mode = "NC-SI";
+	use-ncsi;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
+	/delete-property/phy-handle;
+};
