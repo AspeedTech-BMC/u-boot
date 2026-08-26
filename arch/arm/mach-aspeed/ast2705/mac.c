@@ -438,16 +438,18 @@ static void find_rgmii_delay(uint32_t index)
 	prepare_tx_packet(tx_pkt_buf);
 	mac_txpkt_add(tx_pkt_buf);
 
-	/* TODO:: Confirm the real chip */
 	tx_en = (2000 - rx_init_delay) / tx_average_delay;
 	for (rx = 0; rx < 32; rx++) {
 		set_rgmii_1g_delay(tx_en, rx, index);
 		result[rx] = packet_check(index);
 	}
 
-	/* TODO:: Confirm the real chip */
-	tx_dis = (0 - tx_init_delay) / tx_average_delay;
+	if (tx_init_delay < 0)
+		tx_dis = (8000 - tx_init_delay) / tx_average_delay;
+	else
+		tx_dis = (0 - tx_init_delay) / tx_average_delay;
 
+	tx_en = (2000 - tx_init_delay) / tx_average_delay;
 	rx_dis = find_rx_center(result) + 1;
 	rx_en = rx_dis + 2000 / rx_average_delay;
 
