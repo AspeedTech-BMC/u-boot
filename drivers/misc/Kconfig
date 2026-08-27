@@ -599,6 +599,31 @@ config ASPEED_MBOX
 	  The ASPEED MBOX driver provides a mailbox client to the ASPEED SoC
 	  IPC.
 
+config ASPEED_CPTRA_MCI_MBOX
+	bool "Caliptra-SS MCI mailbox driver for Aspeed SoCs"
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	help
+	  Select this option to enable a driver for the Caliptra-SS MCI
+	  (Manageability Controller Interface) mailbox, integrated in
+	  AST27xx BMC SoCs.
+
+	  Unlike the legacy always-mapped Caliptra mailbox (ASPEED_CPTRA_SHA/
+	  ASPEED_CPTRA_ECDSA), the MCI mailbox's CSR block and data SRAM are
+	  reachable only through a paged 64KB SCU1 window.
+
+config ASPEED_CPTRA_MCI_CM
+	bool "Caliptra-SS MCI mailbox Cmk-managed ECDSA/ML-DSA commands for Aspeed SoCs"
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	select ASPEED_CPTRA_MCI_MBOX
+	help
+	  Select this option to enable MC_IMPORT plus the Cmk-managed
+	  CM_ECDSA_CMK_* / CM_MLDSA_CMK_* commands exposed by the Caliptra-SS
+	  MCI mailbox -- key import and on-device sign, used to build
+	  self-checking ECDSA384/ML-DSA-87 known-answer tests against the
+	  raw-pubkey ASPEED_CPTRA_MCI_ECDSA/ASPEED_CPTRA_MCI_MLDSA verify
+	  paths. Only the ECDSA/ML-DSA subset is ported; AES/HMAC/HKDF/ECDH/
+	  random/cm_status are not.
+
 config I2C_EEPROM
 	bool "Enable driver for generic I2C-attached EEPROMs"
 	depends on MISC

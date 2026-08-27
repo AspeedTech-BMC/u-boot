@@ -79,6 +79,18 @@
 	status = "okay";
 };
 
+&cptra_mci_mbox {
+	status = "okay";
+};
+
+&cptra_mci_sha {
+	status = "okay";
+};
+
+&cptra_mci_ecdsa {
+	status = "okay";
+};
+
 &fmc {
 	status = "okay";
 	pinctrl-names = "default";

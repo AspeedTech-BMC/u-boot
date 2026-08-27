@@ -61,3 +61,18 @@ config CMD_ASPEED_MBOX
 	default n
 	help
 	  Enable ASPEED Mailbox commands for AST2700A1 SoC.
+
+config CMD_CPTRA_MCI
+	bool "Caliptra-SS MCI mailbox utility"
+	select ASPEED_CPTRA_MCI_MBOX
+	select ASPEED_CPTRA_MCI_SHA
+	select ASPEED_CPTRA_MCI_ECDSA
+	select ASPEED_CPTRA_MCI_LMS
+	select ASPEED_CPTRA_MCI_MLDSA
+	select ASPEED_CPTRA_MCI_CM
+	default n
+	help
+	  Enable commands for exercising the Caliptra-SS MCI mailbox
+	  (aspeed_cptra_mci_mbox driver and its SHA/ECDSA/LMS/ML-DSA-87
+	  wrappers), e.g. reading firmware versions and running signature
+	  verify tests.

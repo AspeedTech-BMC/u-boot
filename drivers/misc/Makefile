@@ -102,3 +102,5 @@ obj-$(CONFIG_SPL_ASPEED_UFS) += ast_ufs.o
 obj-$(CONFIG_SPL_ASPEED_USB) += ast_usb.o
 obj-$(CONFIG_SPL_ASPEED_I2C) += ast_i2c.o
 obj-$(CONFIG_ASPEED_MBOX) += aspeed_mbox.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_MBOX) += aspeed_cptra_mci_mbox.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_CM) += aspeed_cptra_mci_cm.o

@@ -6,3 +6,7 @@ obj-$(CONFIG_SPL_ASPEED_MHMAC) += aspeed_mhmac.o
 obj-y += cptra_ecdsa.o
 obj-$(CONFIG_ASPEED_CPTRA_IPC_ECDSA) += cptra_ipc_ecdsa.o
 obj-$(CONFIG_ASPEED_CPTRA_IPC_SHA) += cptra_ipc_sha.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_SHA) += cptra_mci_sha.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_ECDSA) += cptra_mci_ecdsa.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_LMS) += cptra_mci_lms.o
+obj-$(CONFIG_ASPEED_CPTRA_MCI_MLDSA) += cptra_mci_mldsa.o

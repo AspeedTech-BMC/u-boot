@@ -80,3 +80,45 @@ config ASPEED_CPTRA_IPC_SHA
 
 	  Enabling this allows the use of SHA operations in hardware via IPC to BootMCU.
 	  Note that only SHA384 and SHA512 are supported by Caliptra.
+
+config ASPEED_CPTRA_MCI_SHA
+	bool "Caliptra-SS MCI mailbox SHA-384/512 for Aspeed SoCs"
+	depends on DM_HASH
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	select ASPEED_CPTRA_MCI_MBOX
+	help
+	  Select this option to enable a driver for the SHA-384/512 streaming
+	  hash commands (MC_SHA_INIT/UPDATE/FINAL) exposed by the Caliptra-SS
+	  MCI mailbox, integrated in AST27xx BMC SoCs.
+
+config ASPEED_CPTRA_MCI_ECDSA
+	bool "Caliptra-SS MCI mailbox ECDSA384 signature verifier for Aspeed SoCs"
+	depends on ECDSA_VERIFY
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	select ASPEED_CPTRA_MCI_MBOX
+	help
+	  Select this option to enable a driver for the MC_ECDSA384_SIG_VERIFY
+	  command exposed by the Caliptra-SS MCI mailbox, integrated in AST27xx
+	  BMC SoCs. Takes a raw (qx, qy) public key and an already-hashed
+	  digest; verification only, no signing.
+
+config ASPEED_CPTRA_MCI_LMS
+	bool "Caliptra-SS MCI mailbox LMS signature verifier for Aspeed SoCs"
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	select ASPEED_CPTRA_MCI_MBOX
+	help
+	  Select this option to enable cptra_mci_lms_verify(), wrapping the
+	  MC_LMS_SIG_VERIFY command exposed by the Caliptra-SS MCI mailbox.
+	  LMS keys are generated offline, so this is verify-only; there is no
+	  u-boot LMS uclass, so it is a plain function rather than a DM driver.
+
+config ASPEED_CPTRA_MCI_MLDSA
+	bool "Caliptra-SS MCI mailbox ML-DSA-87 signature verifier for Aspeed SoCs"
+	depends on ASPEED_AST2700 || ASPEED_AST2705
+	select ASPEED_CPTRA_MCI_MBOX
+	help
+	  Select this option to enable cptra_mci_mldsa87_verify(), wrapping the
+	  MC_MLDSA87_SIG_VERIFY command exposed by the Caliptra-SS MCI mailbox.
+	  Takes a raw public key; verification only, no signing. There is no
+	  u-boot ML-DSA uclass, so it is a plain function rather than a DM
+	  driver.

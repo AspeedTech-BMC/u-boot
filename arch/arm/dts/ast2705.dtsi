@@ -49,6 +49,23 @@
 			};
 		};
 
+		cptra_mci_mbox: cptra-mci-mbox@14c40000 {
+			compatible = "aspeed,ast2705-cptra-mci-mbox";
+			reg = <0x0 0x14c40000 0x0 0x10000>;
+			aspeed,scu1 = <&syscon1>;
+			status = "disabled";
+		};
+
+		cptra_mci_sha: cptra-mci-sha {
+			compatible = "aspeed,ast2705-cptra-mci-sha";
+			status = "disabled";
+		};
+
+		cptra_mci_ecdsa: cptra-mci-ecdsa {
+			compatible = "aspeed,ast2705-cptra-mci-ecdsa";
+			status = "disabled";
+		};
+
 		syscon1: syscon@14c02000 {
 			compatible = "aspeed,ast2705-scu1", "syscon", "simple-mfd";
 			reg = <0x0 0x14c02000 0x0 0x1000>;
