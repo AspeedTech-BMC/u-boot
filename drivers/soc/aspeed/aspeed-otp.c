@@ -371,16 +371,18 @@ static int otp_check_ecc_status(struct udevice *dev)
 }
 #endif
 
-static void otp_ecc_cfg(struct udevice *dev, bool ecc_en)
+static void otp_ecc_cfg(struct udevice *dev, bool ecc_en, bool auto_cfg)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 
 	writel(ecc_en, otp->base + OTP_ECC_EN);
 #ifdef CONFIG_ARCH_ASPEED
+	bool self_cfg = ecc_en && !auto_cfg;
+
 	/* Self config or auto config */
-	writel(ecc_en ? 0x4 : 0x0, otp->base + OTP_PMC_CQ);
+	writel(self_cfg ? 0x4 : 0x0, otp->base + OTP_PMC_CQ);
 	/* Clearing OTP_PMC_CQ auto-reverts OTP_DAP_CFG_RQ, no explicit write needed to disable */
-	if (ecc_en)
+	if (self_cfg)
 		writel(0x40008, otp->base + OTP_DAP_CFG_RQ);
 #endif
 }
@@ -392,7 +394,7 @@ static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 	bool ecc_en = otp_region_ecc_active(otp, offset);
 
 	writel(offset, otp->base + OTP_ADDR);
-	otp_ecc_cfg(dev, ecc_en);
+	otp_ecc_cfg(dev, ecc_en, false);
 
 	writel(OTP_CMD_READ, otp->base + OTP_CMD);
 	ret = wait_complete(dev);
@@ -403,6 +405,9 @@ static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 	if (!ret && ecc_en)
 		ret = otp_check_ecc_status(dev);
 #endif
+
+	/* Restore ECC config to default */
+	otp_ecc_cfg(dev, ecc_en, true);
 
 	return ret;
 }
