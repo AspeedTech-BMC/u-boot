@@ -472,6 +472,7 @@ out:
 
 void mac_init(void)
 {
+	return;
 	find_rgmii_delay(0);
 	find_rgmii_delay(1);
 }
