@@ -297,6 +297,7 @@ static int mac_xmit(uint32_t index)
 {
 	dma_addr_t des_start, des_end;
 	uintptr_t base = mac_base(index);
+	ulong start = get_timer(0);
 
 	writel(1, base + TXPD);
 
@@ -304,6 +305,10 @@ static int mac_xmit(uint32_t index)
 	des_end = des_start + sizeof(txdes);
 	do {
 		invalidate_dcache_range(des_start, des_end);
+		if (get_timer(start) > 200) {
+			printf("mac%d: xmit timeout\n", index);
+			return -1;
+		}
 	} while (txdes.des0 & MAC_TXDES0_TXDMA_OWN);
 
 	return 0;
