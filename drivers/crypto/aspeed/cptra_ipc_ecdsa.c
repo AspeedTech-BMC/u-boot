@@ -38,6 +38,20 @@ static int cptra_ipc_ecdsa_verify(struct udevice *dev,
 	uint8_t *p8_bmcu_in;
 	int ret, rc;
 
+	if (hash_len != CPTRA_ECDSA_SHA_LEN || sig_len != CPTRA_ECDSA_SIG_LEN) {
+		pr_err("%s: bad hash_len %zu or sig_len %zu\n", __func__,
+		       hash_len, sig_len);
+		return -EINVAL;
+	}
+
+	if ((strcmp(pubkey->curve_name, "secp384r1") &&
+	     strcmp(pubkey->curve_name, "prime384v1")) ||
+	    pubkey->size_bits != ((CPTRA_ECDSA_SIG_LEN / 2) << 3)) {
+		pr_err("%s: unsupported curve %s, %d bits\n", __func__,
+		       pubkey->curve_name, pubkey->size_bits);
+		return -EINVAL;
+	}
+
 	/* Prepare tx data to bootmcu */
 	p8_bmcu_in = (uint8_t *)IPC_CHANNEL_1_BOOTMCU_IN_ADDR;
 	p8_bmcu_in += sizeof(struct cptra_ecdsa_ctx);
@@ -66,6 +80,12 @@ static int cptra_ipc_ecdsa_verify(struct udevice *dev,
 	memcpy(p8, (uint8_t *)signature, 48);
 	p8 += 48;
 	memcpy(p8, (uint8_t *)signature + 48, 48);
+	p8 += 48;
+	/*
+	 * Keep the BootMCU IPC ECDSA packet complete even though Caliptra 1.x
+	 * verifies the digest retained by its SHA384 accelerator.
+	 */
+	memcpy(p8, (uint8_t *)hash, CPTRA_ECDSA_SHA_LEN);
 
 	ret = cptra_ipc_trigger(ipccmd);
 	if (ret) {
