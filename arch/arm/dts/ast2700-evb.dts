@@ -287,6 +287,7 @@
 };
 
 &wdt0 {
+	timeout-sec = <15>;
 	status = "okay";
 };
 
