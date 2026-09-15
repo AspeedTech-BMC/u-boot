@@ -86,9 +86,58 @@
 			};
 
 			pinctrl1: pinctrl@14c02400 {
-				compatible = "aspeed,ast2700-soc1-pinctrl";
+				compatible = "aspeed,ast2705-soc1-pinctrl";
 				reg = <0 0x400 0 0x100>;
 			};
 		};
 	};
+};
+
+&pinctrl_fwspi_quad_default {
+	function = "FWQSPI";
+	groups = "FWQSPI";
+};
+
+&pinctrl_spi0_quad_default {
+	function = "QSPI0";
+	groups = "QSPI0";
+};
+
+&pinctrl_spi1_quad_default {
+	function = "QSPI1";
+	groups = "QSPI1";
+};
+
+&pinctrl_spi2_quad_default {
+	function = "QSPI2";
+	groups = "QSPI2";
+};
+
+&pinctrl_pcie2_perst_default {
+	function = "PCIERC";
+	groups = "PE2SGRSTN";
+};
+
+&pinctrl_usb2cud_default {
+	function = "USB2C";
+};
+
+&pinctrl_usb2cd_default {
+	function = "USB2C";
+};
+
+&pinctrl_usb2ch_default {
+	function = "USB2C";
+};
+
+&pinctrl_usb2cu_default {
+	function = "USB2C";
+};
+
+&pinctrl_usb2dd_default {
+	function = "USB2D";
+};
+
+&pinctrl_usb2dh_default {
+	function = "USB2D";
 };
