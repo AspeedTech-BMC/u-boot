@@ -15,6 +15,7 @@
 #include <dm/uclass.h>
 #include <power/regulator.h>
 #include <asm/arch-aspeed/scu_ast2700.h>
+#include <asm/arch-aspeed/usb_dma_stop_ast2700.h>
 #include <g_dnl.h>
 
 #define AHBC_GROUP(x)				(0x40 * (x))
@@ -101,6 +102,8 @@ int board_init(void)
 	int ret;
 
 	ahbc_init();
+
+	ast2700_xhci_dma_stop();
 
 	regulators_enable_boot_on(0);
 
