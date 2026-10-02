@@ -1519,6 +1519,7 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 			read_len = remain_len;
 #endif
 
+		schedule();
 		ret = nor->read(nor, addr, read_len, buf);
 		if (ret == 0) {
 			/* We shouldn't see 0-length reads */
