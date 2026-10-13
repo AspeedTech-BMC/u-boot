@@ -2038,265 +2038,96 @@ static int otp_prog_image(phys_addr_t addr, int nconfirm)
 	return OTP_SUCCESS;
 }
 
-static unsigned char otp_rompatch_v3_dgst[] =
-	"\x2f\x9c\x5c\x1a\x72\xdf\x21\x43\x4f\x6a\x55\x10\x4a\x4f\xb0\x1c"
-	"\xf6\xc8\xf1\xdb\xe6\x1f\x92\xfc\xcc\x6c\xda\xf8\x1c\x5b\x53\xaf"
-	"\x67\xa4\xba\x61\xd9\x4f\xc6\xf8\x6b\xb0\xe6\x68\xa8\x72\x15\xbf";
-
-static unsigned char otp_vendor_keyhash[] =
-	"\xCF\x30\xDE\xEB\xCE\x37\xB1\xA0\xC4\x74\xD6\xC0\xD4\x9F\x33\x70"
-	"\xCB\x79\x72\xCF\x44\xF8\xEA\xB9\x60\x10\x14\x95\xBA\x94\xC9\x4E"
-	"\xA6\x5E\x9F\xE3\x90\x1B\x62\x6B\x20\x40\x4F\xC4\x2B\x2B\xA2\x86";
+/*
+ * SHA384 over OTPROM~OTPSEC (all regions except OTPCAL and OTPPUF).
+ * Computed from otp-ast2700-cptra-prov-step1.bin (ROM patch v9).
+ */
+static unsigned char otp_rompatch_v9_hash[] =
+	"\x99\xa1\x35\x09\x86\x1b\x01\xaa\x2f\x41\x5e\xf5\xd2\xdd\xac\x98"
+	"\xca\xcb\xb5\x19\x46\xfe\x91\x80\xe8\x31\x8a\xa4\xec\x2f\x92\x5b"
+	"\x28\x90\xec\x15\x31\x43\xca\x5c\x20\x64\xe1\x27\xc0\x9f\x4a\xda";
 
 #define OTP_ROM_PATCH_VERSION_ADDR	0x14c02180
-#define OTPCFG0_GLD_VALUE		0x4020
-#define OTPCFG2_GLD_VALUE		0x100
-#define OTPCFG4_GLD_VALUE		0x1
-#define OTPCFG5_GLD_VALUE		0x13a
-#define OTPCFG6_GLD_VALUE		0x275
-#define OTPCFG7_GLD_VALUE		0x19a
+#define OTP_ROM_PATCH_V9		0x3976
 
 static int otp_test_provision(void)
 {
-	int rom_patch_ver;
+	sha512_context ctx;
+	uint8_t digest[SHA384_SUM_LEN];
+	uint16_t word;
+	int i;
 
 	/* Check ROM patch version */
-	rom_patch_ver = readl(OTP_ROM_PATCH_VERSION_ADDR);
-	switch (rom_patch_ver) {
-	case 0x0:
-		printf("WARN: No ROM patch detected\n");
-		printf("This chip is not provisioned, please change your chip !!!\n");
-		return OTP_FAILURE;
-	case 0x3:
-		printf("WARN: ROM patch version 1 detected\n");
-		printf("This chip is not provisioned, please change your chip !!!\n");
-		return OTP_FAILURE;
-	case 0x3276:
-		printf("ROM patch version 2 detected\n");
-		printf("This chip is not provisioned, please change your chip !!!\n");
-		return OTP_FAILURE;
-	case 0x3376:
-		printf("ROM patch version 3 detected\n");
-		break;
-	default:
-		printf("Unknown ROM patch version: 0x%x\n", rom_patch_ver);
+	int rom_patch_ver = readl(OTP_ROM_PATCH_VERSION_ADDR);
+
+	if (rom_patch_ver != OTP_ROM_PATCH_V9) {
+		printf("ROM patch version mismatch: 0x%x, expected v9 (0x%x)\n",
+		       rom_patch_ver, OTP_ROM_PATCH_V9);
 		return OTP_FAILURE;
 	}
+	printf("ROM patch version v9 detected\n");
 
-	/* Check OTPROM region */
-	uint16_t data_rom[OTP_ROM_REGION_SIZE];
-	uint8_t digest[48];
+	/* SHA384 over OTPROM~OTPSEC (all regions except OTPCAL and OTPPUF) */
+	sha384_starts(&ctx);
+	for (i = ROM_REGION_START_ADDR; i < SEC_REGION_END_ADDR; i++) {
+		if (otp_read(i, &word) != OTP_SUCCESS) {
+			printf("OTP read failed at offset 0x%x\n", i);
+			return OTP_FAILURE;
+		}
+		sha384_update(&ctx, (uint8_t *)&word, sizeof(word));
+	}
+	sha384_finish(&ctx, digest);
 
-	for (int i = 0; i < OTP_ROM_REGION_SIZE; i++) {
-		if (otp_read_rom(i, &data_rom[i]) != OTP_SUCCESS) {
-			printf("OTPROM read failed at offset 0x%x\n", i);
+	if (memcmp(otp_rompatch_v9_hash, digest, SHA384_SUM_LEN) != 0) {
+		printf("OTP hash mismatch (OTPROM~OTPSEC)\n");
+		printf("expected digest:\n");
+		buf_print((u8 *)otp_rompatch_v9_hash, SHA384_SUM_LEN);
+		printf("computed digest:\n");
+		buf_print(digest, SHA384_SUM_LEN);
+		return OTP_FAILURE;
+	}
+	printf("OTPROM~OTPSEC hash check passed\n");
+
+	/* OTPCAL per-field validation */
+	for (i = 0; i < 0x292; i++) {
+		if (otp_read_cptra(i, &word) != OTP_SUCCESS) {
+			printf("OTPCAL read failed at offset 0x%x\n", i);
+			return OTP_FAILURE;
+		}
+
+		if (i < 0x12) {
+			if (word != 0) {
+				printf("OTPCAL[0x%03x] should be zero but is 0x%04x\n", i, word);
+				return OTP_FAILURE;
+			}
+		} else if ((i >= 0x12 && i <= 0x2a) ||
+			   i == 0x36 ||
+			   (i >= 0x38 && i <= 0x3f) ||
+			   i == 0x62 ||
+			   (i >= 0x262 && i <= 0x291)) {
+			if (word == 0) {
+				printf("OTPCAL[0x%03x] should be non-zero but is 0\n", i);
+				return OTP_FAILURE;
+			}
+		}
+	}
+	printf("OTPCAL region is valid\n");
+
+	/* OTPPUF: each 4-byte chunk must be non-zero */
+	for (i = 0; i < OTP_SWPUF_REGION_SIZE; i += 2) {
+		uint16_t w0, w1;
+
+		if (otp_read_puf(i, &w0) != OTP_SUCCESS ||
+		    otp_read_puf(i + 1, &w1) != OTP_SUCCESS) {
+			printf("OTPPUF read failed at offset 0x%x\n", i);
+			return OTP_FAILURE;
+		}
+		if (w0 == 0 && w1 == 0) {
+			printf("OTPPUF has zero 4-byte chunk at offset 0x%x\n", i);
 			return OTP_FAILURE;
 		}
 	}
-
-	sha384_csum_wd((uint8_t *)data_rom, sizeof(data_rom), digest, 48);
-
-	/* print_buffer((ulong)digest, digest, 1, 48, 16); */
-
-	if (memcmp(otp_rompatch_v3_dgst, digest, 48) != 0) {
-		printf("OTPROM digest mismatch\n");
-		return -1;
-	}
-
-	printf("OTPROM region is valid\n");
-
-	/* Check OTPCFG region */
-	uint16_t data_cfg[OTP_CONF_REGION_SIZE];
-
-	for (int i = 0; i < OTP_CONF_REGION_SIZE; i++) {
-		if (otp_read_conf(i, &data_cfg[i]) != OTP_SUCCESS) {
-			printf("OTPCFG read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		switch (i) {
-		case 0:
-			if (data_cfg[i] != OTPCFG0_GLD_VALUE) {
-				printf("OTPCFG[0] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG0_GLD_VALUE);
-				return -1;
-			}
-			break;
-		case 2:
-			if (data_cfg[i] != OTPCFG2_GLD_VALUE) {
-				printf("OTPCFG[2] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG2_GLD_VALUE);
-				return -1;
-			}
-			break;
-		case 4:
-			if (data_cfg[i] != OTPCFG4_GLD_VALUE) {
-				printf("OTPCFG[4] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG4_GLD_VALUE);
-				return -1;
-			}
-			break;
-		case 5:
-			if (data_cfg[i] != OTPCFG5_GLD_VALUE) {
-				printf("OTPCFG[5] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG5_GLD_VALUE);
-				return -1;
-			}
-			break;
-		case 6:
-			if (data_cfg[i] != OTPCFG6_GLD_VALUE) {
-				printf("OTPCFG[6] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG6_GLD_VALUE);
-				return -1;
-			}
-			break;
-		case 7:
-			if (data_cfg[i] != OTPCFG7_GLD_VALUE) {
-				printf("OTPCFG[7] value mismatch: 0x%x, expected: 0x%x\n",
-				       data_cfg[i], OTPCFG7_GLD_VALUE);
-				return -1;
-			}
-			break;
-		default:
-			if (data_cfg[i] != 0) {
-				printf("OTPCFG[%d] value mismatch: 0x%x, expected: 0x0\n",
-				       i, data_cfg[i]);
-				return -1;
-			}
-			break;
-		}
-	}
-
-	printf("OTPCFG region is valid\n");
-
-	/* Check OTPCAL region */
-	int otpcal_check_size = 0x2a;			/* word */
-	int otpcal_vendor_keyhash_offset = 0x12;	/* word */
-	uint16_t data_cptra[otpcal_check_size];
-
-	for (int i = 0; i < otpcal_check_size; i++) {
-		if (otp_read_cptra(i, &data_cptra[i]) != OTP_SUCCESS) {
-			printf("OTPCAL read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (i < otpcal_vendor_keyhash_offset && data_cptra[i] != 0) {
-			printf("OTPCAL[%d] value mismatch: 0x%x, expected: 0x0\n",
-			       i, data_cptra[i]);
-			return -1;
-		}
-	}
-
-	if (memcmp(otp_vendor_keyhash, &data_cptra[otpcal_vendor_keyhash_offset], 48) != 0) {
-		printf("OTPCAL vendor key hash mismatch\n");
-		return -1;
-	}
-
-	printf("OTPCAL region is valid\n");
-
-	/* Check OTPPUF region is not empty */
-	uint16_t data_puf[OTP_SWPUF_REGION_SIZE];
-
-	for (int i = 0; i < OTP_SWPUF_REGION_SIZE; i++) {
-		if (otp_read_puf(i, &data_puf[i]) != OTP_SUCCESS) {
-			printf("OTPPUF read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data_puf[i] == 0x0) {
-			printf("OTPPUF region is empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-
 	printf("OTPPUF region is valid\n");
-
-	uint16_t ueid[8] = {0};
-	uint32_t ueid_off = 0x38;
-	bool same_ueid = true;
-
-	for (int i = 0; i < 8; i++) {
-		if (otp_read_cptra(ueid_off + i, &ueid[i]) != OTP_SUCCESS) {
-			printf("OTPCAL read failed at offset 0x%x\n", ueid_off + i);
-			return -1;
-		}
-
-		if (i && same_ueid && ueid[i] != ueid[0])
-			same_ueid = false;
-	}
-
-	if (same_ueid && (ueid[0] == 0x0000 || ueid[0] == 0xFFFF)) {
-		printf("Invalid UEID: all the same 0x%04x\n", ueid[0]);
-		return -1;
-	}
-
-	printf("OTPUEID values are valid\n");
-
-	/* Check other's region is empty
-	 * - OTPRBP region
-	 * - OTPSTRAP region
-	 * - OTPSTRAP_EXT region
-	 * - OTPUSR region
-	 * - OTPSEC region
-	 */
-	uint16_t data;
-
-	for (int i = 0; i < OTP_RBP_REGION_SIZE; i++) {
-		if (otp_read_rbp(i, &data) != OTP_SUCCESS) {
-			printf("OTPRBP read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data != 0x0) {
-			printf("OTPRBP region is not empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-	for (int i = 0; i < OTP_STRAP_REGION_SIZE; i++) {
-		if (otp_read_strap(i, &data) != OTP_SUCCESS) {
-			printf("OTPSTRAP read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data != 0x0) {
-			printf("OTPSTRAP region is not empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-	for (int i = 0; i < OTP_STRAP_EXT_REGION_SIZE; i++) {
-		if (otp_read_strap_ext(i, &data) != OTP_SUCCESS) {
-			printf("OTPSTRAP_EXT read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data != 0x0) {
-			printf("OTPSTRAP_EXT region is not empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-	for (int i = 0; i < OTP_USER_REGION_SIZE; i++) {
-		if (otp_read_data(i, &data) != OTP_SUCCESS) {
-			printf("OTPUSR read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data != 0x0) {
-			printf("OTPUSR region is not empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-	for (int i = 0; i < OTP_SEC_REGION_SIZE; i++) {
-		if (otp_read_secure(i, &data) != OTP_SUCCESS) {
-			printf("OTPSEC read failed at offset 0x%x\n", i);
-			return -1;
-		}
-
-		if (data != 0x0) {
-			printf("OTPSEC region is not empty, this chip is abnormal\n");
-			return -1;
-		}
-	}
-	printf("Other regions are empty\n");
 
 	printf("This chip is provisioned successfully !!!\n");
 
