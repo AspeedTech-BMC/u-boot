@@ -27,6 +27,7 @@
 
 #define AST27X5_SOC1_DRV_BASE		0x490
 #define AST27X5_SOC1_DRV_MASK		0x3
+#define AST27X5_SOC1_DRV_MASK_3BIT	0x7
 #define AST27X5_SOC1_DRV_BITS_PER_PIN	16
 #define AST27X5_SOC1_DRV_PINS_PER_REG	2
 
@@ -1590,11 +1591,14 @@ ast27x5_soc1_pinctrl_gpio_request_enable(struct udevice *dev,
 }
 
 /*
- * Drive strength is controlled by 2-bit fields in 16-bit lanes at
- * DRV_BASE. GPIOY/Z use a separate pull-down register and have no
- * drive strength or pull-up fields; GPIOAA follows GPIOX in DRV_BASE.
- * The table stores (field index + 1) so that the implicit zero
- * initialization marks the unsupported pins.
+ * Drive strength is controlled by fields in 16-bit lanes at DRV_BASE,
+ * 2 bits (0-3) on most balls but 3 bits (0-7) on balls whose pad cell
+ * has a wider driving-impedance/current table (see
+ * ast27x5_soc1_drv_3bit[] below) -- checked per-ball against the kernel
+ * driver, not assumed uniform. GPIOY/Z use a separate pull-down
+ * register and have no drive strength or pull-up fields; GPIOAA
+ * follows GPIOX in DRV_BASE. The table stores (field index + 1) so
+ * that the implicit zero initialization marks the unsupported pins.
  */
 static const u8 ast27x5_soc1_drv_map[] = {
 	[Y22] = 1, [U22] = 2, [U16] = 3, [U15] = 4, [U23] = 5,
@@ -1637,6 +1641,31 @@ static const u8 ast27x5_soc1_drv_map[] = {
 	[G26] = 190, [G25] = 191, [H24] = 192, [C17] = 193, [A16] = 194,
 	[B17] = 195, [A17] = 196, [J25] = 197, [C19] = 198, [L26] = 199,
 	[K26] = 200,
+};
+
+/*
+ * The 89 balls (of 196) whose drive-strength field is 3 bits (0-7)
+ * instead of the usual 2 bits (0-3). Checked per-ball against the
+ * kernel driver's aspeed_g75_soc1_pinconf_fields[].drv_3bit, not
+ * inferred: e.g. RGMII0's balls are all 2-bit, while RGMII1's are all
+ * 3-bit, despite both groups otherwise looking symmetric.
+ */
+static const bool ast27x5_soc1_drv_3bit[] = {
+	[G10] = true, [G9] = true, [G8] = true, [F9] = true, [F10] = true, [H11] = true,
+	[E10] = true, [G11] = true, [F12] = true, [D10] = true, [H7] = true, [H5] = true,
+	[G4] = true, [F8] = true, [G5] = true, [Y24] = true, [P13] = true, [G12] = true,
+	[H12] = true, [T17] = true, [T19] = true, [Y26] = true, [G15] = true, [V26] = true,
+	[N13] = true, [M13] = true, [L12] = true, [A6] = true, [B7] = true, [A7] = true,
+	[A8] = true, [B8] = true, [U26] = true, [E16] = true, [P26] = true, [E8] = true,
+	[C12] = true, [L25] = true, [M25] = true, [N25] = true, [M26] = true, [N26] = true,
+	[A9] = true, [B9] = true, [J10] = true, [H10] = true, [F11] = true, [J9] = true,
+	[E11] = true, [C10] = true, [G7] = true, [F15] = true, [T25] = true, [E14] = true,
+	[T24] = true, [Y25] = true, [U25] = true, [E15] = true, [D12] = true, [D11] = true,
+	[C11] = true, [F16] = true, [T26] = true, [W26] = true, [R25] = true, [B16] = true,
+	[C18] = true, [B18] = true, [A18] = true, [A19] = true, [C22] = true, [D22] = true,
+	[C21] = true, [B11] = true, [B12] = true, [A11] = true, [C13] = true, [A10] = true,
+	[C14] = true, [B15] = true, [A13] = true, [C20] = true, [J26] = true, [E22] = true,
+	[E23] = true, [F26] = true, [G26] = true, [G25] = true, [H24] = true,
 };
 
 static bool ast27x5_soc1_is_adc_alt(unsigned int pin)
@@ -1770,15 +1799,21 @@ static int ast27x5_soc1_pinctrl_pinconf_set(struct udevice *dev,
 		if (selector >= ARRAY_SIZE(ast27x5_soc1_drv_map) ||
 		    !ast27x5_soc1_drv_map[selector])
 			return -ENOTSUPP;
-		/*
-		 * Match the kernel's raw 0-3 ABI, deliberately not generic
-		 * pinconf's mA units: hardware defines only 55/40/25/10 ohm
-		 * output impedance, with no current rating to convert from.
-		 */
-		if (arg > AST27X5_SOC1_DRV_MASK)
-			return -EINVAL;
 		idx = ast27x5_soc1_drv_map[selector] - 1;
 		field = ast27x5_soc1_drv_field_from_idx(idx);
+		if (selector < ARRAY_SIZE(ast27x5_soc1_drv_3bit) &&
+		    ast27x5_soc1_drv_3bit[selector])
+			field.mask = AST27X5_SOC1_DRV_MASK_3BIT;
+		/*
+		 * Match the kernel's raw ABI, deliberately not generic
+		 * pinconf's mA units: hardware defines only an output
+		 * impedance in ohms (or, on some balls, an IOL/IOH current
+		 * table), with no mA rating to convert from in either case.
+		 * The valid range is 0-3 or 0-7 depending on the ball; see
+		 * ast27x5_soc1_drv_3bit[].
+		 */
+		if (arg > field.mask)
+			return -EINVAL;
 		val = arg;
 		break;
 	default:
