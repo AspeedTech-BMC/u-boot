@@ -21,14 +21,14 @@
 #define AST27X5_SOC1_MUX_PINS_PER_REG	8
 
 #define AST27X5_SOC1_BIAS_BASE		0x470
+#define AST27X5_SOC1_PULL_DOWN_MASK	(0x1 << 8)
+#define AST27X5_SOC1_PULL_UP_MASK	(0x7 << 4)
+#define AST27X5_SOC1_PULL_UP_SHIFT	4
 
 #define AST27X5_SOC1_DRV_BASE		0x490
 #define AST27X5_SOC1_DRV_MASK		0x3
 #define AST27X5_SOC1_DRV_BITS_PER_PIN	16
 #define AST27X5_SOC1_DRV_PINS_PER_REG	2
-#define AST27X5_SOC1_DRV_STEP_MA	4
-#define AST27X5_SOC1_DRV_MIN_MA		4
-#define AST27X5_SOC1_DRV_MAX_MA		16
 
 enum {
 	Y22,
@@ -1639,12 +1639,17 @@ static const u8 ast27x5_soc1_drv_map[] = {
 	[K26] = 200,
 };
 
+static bool ast27x5_soc1_is_adc_alt(unsigned int pin)
+{
+	return pin >= W14 && pin <= AB17;
+}
+
 static struct ast27x5_soc1_field
 ast27x5_soc1_bias_field_from_pin(unsigned int pin)
 {
 	unsigned int idx;
 
-	if (pin >= W14 && pin <= AB17)
+	if (ast27x5_soc1_is_adc_alt(pin))
 		return (struct ast27x5_soc1_field){
 			.reg = AST27X5_SOC1_BIAS_BASE,
 			.shift = pin - W14,
@@ -1656,8 +1661,8 @@ ast27x5_soc1_bias_field_from_pin(unsigned int pin)
 		.reg = AST27X5_SOC1_DRV_BASE +
 		       (idx / AST27X5_SOC1_DRV_PINS_PER_REG) * sizeof(u32),
 		.shift = (idx % AST27X5_SOC1_DRV_PINS_PER_REG) *
-			 AST27X5_SOC1_DRV_BITS_PER_PIN + 8,
-		.mask = 0x1,
+			 AST27X5_SOC1_DRV_BITS_PER_PIN,
+		.mask = AST27X5_SOC1_PULL_DOWN_MASK | AST27X5_SOC1_PULL_UP_MASK,
 	};
 }
 
@@ -1673,10 +1678,46 @@ ast27x5_soc1_drv_field_from_idx(unsigned int idx)
 	};
 }
 
+/*
+ * Pull-up arguments are in ohms, matching the kernel's ABI; the hardware
+ * uses a one-hot encoding. ohm == 0 is a valid argument here (not an
+ * error): it means "no pull-up", same as the kernel driver. Since
+ * pull-up and pull-down share one mutually-exclusive field, writing it
+ * has the same effect on the register as bias-disable.
+ */
+static int ast27x5_soc1_pullup_ohm_to_raw(unsigned int ohm, unsigned int *raw)
+{
+	switch (ohm) {
+	case 0:
+		*raw = 0;
+		break;
+	case 750:
+		*raw = 1;
+		break;
+	case 550:
+		*raw = 2;
+		break;
+	case 400:
+		*raw = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * "bias-pull-down"'s default argument is unused: PIN_CONFIG_BIAS_PULL_DOWN
+ * always enables regardless of arg (see below), matching the kernel.
+ * "bias-pull-up"'s default of 750 (its weakest valid ohm value) is only
+ * used for a bare "bias-pull-up;" property with no explicit value; an
+ * explicit value must still be one of the valid ohms below.
+ */
 static const struct pinconf_param ast27x5_soc1_pinconf_params[] = {
 	{ "bias-disable", PIN_CONFIG_BIAS_DISABLE, 0 },
 	{ "bias-pull-down", PIN_CONFIG_BIAS_PULL_DOWN, 1 },
-	{ "bias-pull-up", PIN_CONFIG_BIAS_PULL_UP, 1 },
+	{ "bias-pull-up", PIN_CONFIG_BIAS_PULL_UP, 750 },
 	{ "drive-strength", PIN_CONFIG_DRIVE_STRENGTH, 0 },
 };
 
@@ -1688,6 +1729,7 @@ static int ast27x5_soc1_pinctrl_pinconf_set(struct udevice *dev,
 	struct ast27x5_soc1_pinctrl_priv *priv = dev_get_priv(dev);
 	struct ast27x5_soc1_field field;
 	unsigned int val, idx;
+	int ret;
 
 	if (selector > K26 || (selector >= HOLE0 && selector <= HOLE3))
 		return -EINVAL;
@@ -1695,34 +1737,49 @@ static int ast27x5_soc1_pinctrl_pinconf_set(struct udevice *dev,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		/* The pull-down bit is active low, including on GPIOY/Z. */
+		if (!ast27x5_soc1_is_adc_alt(selector) &&
+		    (selector >= ARRAY_SIZE(ast27x5_soc1_drv_map) ||
+		     !ast27x5_soc1_drv_map[selector]))
+			return -ENOTSUPP;
 		field = ast27x5_soc1_bias_field_from_pin(selector);
-		val = param == PIN_CONFIG_BIAS_DISABLE || !arg ? 1 : 0;
+		if (field.reg == AST27X5_SOC1_BIAS_BASE) {
+			/* GPIOY/Z use disable-type pull-down bits; ignore arg. */
+			val = param == PIN_CONFIG_BIAS_DISABLE;
+		} else {
+			/*
+			 * Enable-type pull-down; the mask also clears pull-up.
+			 * PIN_CONFIG_BIAS_PULL_DOWN always enables regardless
+			 * of arg, matching the kernel driver.
+			 */
+			val = param == PIN_CONFIG_BIAS_PULL_DOWN ?
+				AST27X5_SOC1_PULL_DOWN_MASK : 0;
+		}
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (selector >= ARRAY_SIZE(ast27x5_soc1_drv_map) ||
 		    !ast27x5_soc1_drv_map[selector])
 			return -ENOTSUPP;
-		/* Keep the kernel's pull-up selection encodings: 0, 1, 2, 4. */
-		if (arg != 0 && arg != 1 && arg != 2 && arg != 4)
-			return -EINVAL;
-		idx = ast27x5_soc1_drv_map[selector] - 1;
-		field = ast27x5_soc1_drv_field_from_idx(idx);
-		field.shift += 4;
-		field.mask = 0x7;
-		val = arg;
+		ret = ast27x5_soc1_pullup_ohm_to_raw(arg, &val);
+		if (ret)
+			return ret;
+		/* Clear pull-down whenever selecting or disabling pull-up. */
+		field = ast27x5_soc1_bias_field_from_pin(selector);
+		val <<= AST27X5_SOC1_PULL_UP_SHIFT;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		if (selector >= ARRAY_SIZE(ast27x5_soc1_drv_map) ||
 		    !ast27x5_soc1_drv_map[selector])
 			return -ENOTSUPP;
-		if (arg < AST27X5_SOC1_DRV_MIN_MA ||
-		    arg > AST27X5_SOC1_DRV_MAX_MA ||
-		    arg % AST27X5_SOC1_DRV_STEP_MA)
+		/*
+		 * Match the kernel's raw 0-3 ABI, deliberately not generic
+		 * pinconf's mA units: hardware defines only 55/40/25/10 ohm
+		 * output impedance, with no current rating to convert from.
+		 */
+		if (arg > AST27X5_SOC1_DRV_MASK)
 			return -EINVAL;
 		idx = ast27x5_soc1_drv_map[selector] - 1;
 		field = ast27x5_soc1_drv_field_from_idx(idx);
-		val = arg / AST27X5_SOC1_DRV_STEP_MA - 1;
+		val = arg;
 		break;
 	default:
 		return -ENOTSUPP;
