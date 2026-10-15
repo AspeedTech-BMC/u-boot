@@ -55,12 +55,24 @@
 	};
 };
 
+&pinctrl1 {
+	pinctrl_rgmii0_driving: rgmii0_driving {
+		groups = "RGMII0";
+		drive-strength = <3>;
+	};
+
+	pinctrl_rgmii1_driving: rgmii1_driving {
+		groups = "RGMII1";
+		drive-strength = <3>;
+	};
+};
+
 &mac0 {
 	status = "okay";
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii0_default>;
+	pinctrl-0 = <&pinctrl_rgmii0_default &pinctrl_rgmii0_driving>;
 	rx-internal-delay-ps = <0>;
 	tx-internal-delay-ps = <0>;
 };
@@ -70,7 +82,7 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default &pinctrl_rgmii1_driving>;
 	rx-internal-delay-ps = <0>;
 	tx-internal-delay-ps = <0>;
 };
