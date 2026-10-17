@@ -785,6 +785,7 @@ static void ast2700_init_mac_clk(struct ast2700_scu1 *scu)
 static void ast2700_init_rgmii_clk(struct ast2700_scu1 *scu)
 {
 	u32 reg_284 = readl(&scu->clk_sel2);
+	u32 new_284 = reg_284;
 	u32 src_clk = ast2700_soc1_get_pll_rate(scu, RGMII_DEFAULT_CLK_SRC);
 
 	if (RGMII_DEFAULT_CLK_SRC == SCU1_CLK_HPLL) {
@@ -815,7 +816,7 @@ static void ast2700_init_rgmii_clk(struct ast2700_scu1 *scu)
 		writel(reg_280, &scu->clk_sel1);
 
 		/* select HPLL clock source */
-		reg_284 &= ~BIT(18);
+		new_284 &= ~BIT(18);
 	} else {
 		/* APLL clock divider is fixed to 8 */
 		if (DIV_ROUND_UP(src_clk, 8) != 125000000) {
@@ -824,10 +825,16 @@ static void ast2700_init_rgmii_clk(struct ast2700_scu1 *scu)
 		}
 
 		/* select APLL clock source */
-		reg_284 |= BIT(18);
+		new_284 |= BIT(18);
 	}
 
-	writel(reg_284, &scu->clk_sel2);
+	/*
+	 * clk_sel2 may be write-protected by secure world (OP-TEE/TF-A).
+	 * Skip the write if the register already holds the required value
+	 * to avoid a non-secure access fault that would abort the caller.
+	 */
+	if (new_284 != reg_284)
+		writel(new_284, &scu->clk_sel2);
 }
 
 static void ast2700_init_rmii_clk(struct ast2700_scu1 *scu)

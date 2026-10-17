@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+/dts-v1/;
+
+#include "ast2700.dtsi"
+#include "ast2700-u-boot.dtsi"
+
+/ {
+	model = "PST BMC";
+	compatible = "ibm,pstbmc", "aspeed,ast2700";
+
+	memory {
+		device_type = "memory";
+		reg = <0x4 0x00000000 0x0 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = &uart12;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		#include "ast2700-evb-reserved-mem.dtsi"
+
+		event_log: tcg_event_log@431c00000 {
+			no-map;
+			reg = <0x4 0x31c00000 0x0 0x100000>;
+		};
+	};
+};
+
+&uart12 {
+	status = "okay";
+};
+
+&mdio0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&mdio1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&mac0 {
+	status = "okay";
+	phy-mode = "NC-SI";
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii0_default>,
+		    <&pinctrl_rmii0_rclko_default>;
+};
+
+&mac1 {
+	status = "okay";
+	phy-mode = "NC-SI";
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>,
+		    <&pinctrl_rmii1_rclko_default>;
+};
+
+&fmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwspi_quad_default>;
+
+	flash@0 {
+		status = "okay";
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+	};
+};
+
+&spi2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default>;
+	compatible = "aspeed,ast2700-spi-txrx";
+	spi-aspeed-full-duplex;
+
+	tpm0: tpmdev@0 {
+		compatible = "tcg,tpm_tis-spi";
+		spi-max-frequency = <500000>;
+		reg = <0>;
+		memory-region = <&event_log>;
+		status = "okay";
+	};
+};
+
+&ufs {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+
+	tpm1: tpm@2e {
+		compatible = "nuvoton,npct75x";
+		reg = <0x2e>;
+		memory-region = <&event_log>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+};
+
+&wdt0 {
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+};
+
+&soc1_clk {
+	mac0-clk-delay = <0x18 0x16
+			  0x10 0x10
+			  0x10 0x10>;
+	mac1-clk-delay = <0x18 0x17
+			  0x10 0x10
+			  0x10 0x10>;
+};
+
+&soc0 {
+	mbox-bootmcu-1 {
+		compatible = "aspeed,aspeed-mbox";
+		reg = <0x4 0x31880000 0x0 0x100000>, <0x4 0x31980000 0x0 0x100000>;
+		mboxes = <&mbox2 1>;
+	};
+};

@@ -722,6 +722,8 @@ static int ftgmac100_set_ast2700_rgmii_delay(struct udevice *dev)
 	int dly_mask;
 	int mac_id;
 
+	printf("ftgmac100_set_ast2700_rgmii_delay: entered.\n");
+
 	scu = syscon_regmap_lookup_by_phandle(dev, "aspeed,scu");
 	if (IS_ERR(scu))
 		return PTR_ERR(scu);
@@ -791,6 +793,44 @@ static int ftgmac100_set_ast2700_rgmii_delay(struct udevice *dev)
 	return 0;
 }
 
+static int ftgmac100_set_ast2700_rmii_delay(struct udevice *dev)
+{
+	struct eth_pdata *pdata = dev_get_plat(dev);
+	struct regmap *scu;
+	u32 rclk_bit;
+	int mac_id;
+
+	scu = syscon_regmap_lookup_by_phandle(dev, "aspeed,scu");
+	if (IS_ERR(scu))
+		return PTR_ERR(scu);
+
+	switch (pdata->iobase) {
+	case AST2700_MAC0_BASE_ADDR:
+		mac_id = 0;
+		rclk_bit = AST2700_MAC0_RMII_RCLK_OUT;
+		break;
+	case AST2700_MAC1_BASE_ADDR:
+		mac_id = 1;
+		rclk_bit = AST2700_MAC1_RMII_RCLK_OUT;
+		break;
+	default:
+		return 0;
+	}
+
+	/*
+	 * For RMII/NCSI the SoC drives the 50MHz REF_CLK out to the NIC via
+	 * the RCLKO pin.  Enable the RMII REF_CLK output in the MAC clock
+	 * delay register and set a minimal TX delay step (1) so the output
+	 * clock meets the RMII setup time at the NIC.
+	 */
+	regmap_update_bits(scu, AST2700_MAC01_CLK_DLY,
+			   rclk_bit | (mac_id == 0 ? ASPEED_MAC0_2_TX_DLY
+						   : ASPEED_MAC1_3_TX_DLY),
+			   rclk_bit | (mac_id == 0 ? FIELD_PREP(ASPEED_MAC0_2_TX_DLY, 1)
+						   : FIELD_PREP(ASPEED_MAC1_3_TX_DLY, 1)));
+	return 0;
+}
+
 static int ftgmac100_set_internal_delay(struct udevice *dev)
 {
 	ulong data = dev_get_driver_data(dev);
@@ -856,6 +896,9 @@ static int ftgmac100_probe(struct udevice *dev)
 	if (dev_read_bool(dev, "use-ncsi"))
 		priv->phy_mode = PHY_INTERFACE_MODE_NCSI;
 
+	printf("%s: phy_mode=%d ncsi=%d\n", __func__,          /* ADD THIS */
+	       priv->phy_mode, dev_read_bool(dev, "use-ncsi")); /* ADD THIS */
+
 #ifdef CONFIG_PHY_ADDR
 	priv->phy_addr = CONFIG_PHY_ADDR;
 #endif
@@ -863,6 +906,13 @@ static int ftgmac100_probe(struct udevice *dev)
 	ret = clk_enable_bulk(&priv->clks);
 	if (ret)
 		goto out;
+
+	if (priv->phy_mode == PHY_INTERFACE_MODE_NCSI &&
+	    dev_get_driver_data(dev) == FTGMAC100_MODEL_AST2700) {
+		ret = ftgmac100_set_ast2700_rmii_delay(dev);
+		if (ret)
+			goto out;
+	}
 
 	if (priv->reset_ctl) {
 		ret = reset_deassert(priv->reset_ctl);

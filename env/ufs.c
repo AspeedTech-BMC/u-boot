@@ -35,12 +35,23 @@ struct ufs *ufs = &g_ufs;
 /* Default ENV offset when not defined in Device Tree */
 #define ENV_UFS_OFFSET		CONFIG_ENV_OFFSET
 
+#if defined(CONFIG_ENV_OFFSET_REDUND)
+#define ENV_UFS_OFFSET_REDUND	CONFIG_ENV_OFFSET_REDUND
+#else
+#define ENV_UFS_OFFSET_REDUND	ENV_UFS_INVALID_OFFSET
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 static inline s64 ufs_offset(struct ufs *ufs, int copy)
 {
 	const char *propname = "u-boot,ufs-env-offset";
 	s64 defvalue = ENV_UFS_OFFSET;
+
+	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT) && copy) {
+		propname = "u-boot,ufs-env-offset-redundant";
+		defvalue = ENV_UFS_OFFSET_REDUND;
+	}
 
 	return ofnode_conf_read_int(propname, defvalue);
 }
@@ -91,6 +102,11 @@ static int env_ufs_save(void)
 	if (ret)
 		goto fini;
 
+	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT)) {
+		if (gd->env_valid == ENV_VALID)
+			copy = 1;
+	}
+
 	if (ufs_get_env_addr(ufs, copy, &offset)) {
 		ret = 1;
 		goto fini;
@@ -104,6 +120,9 @@ static int env_ufs_save(void)
 	}
 
 	ret = 0;
+
+	if (IS_ENABLED(CONFIG_SYS_REDUNDAND_ENVIRONMENT))
+		gd->env_valid = gd->env_valid == ENV_REDUND ? ENV_VALID : ENV_REDUND;
 
 fini:
 	fini_ufs_for_env(ufs);
@@ -125,14 +144,9 @@ static inline int read_env(struct ufs *ufs, unsigned long size,
 	return (n == blk_cnt) ? 0 : -1;
 }
 
-static int env_ufs_load(void)
+static int init_ufs_for_env(struct ufs *ufs)
 {
-	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
 	struct blk_desc *bd;
-	u32 offset;
-	int ret;
-	const char *errmsg = NULL;
-	env_t *ep = NULL;
 
 	if (IS_ENABLED(CONFIG_DM_SCSI)) {
 		scsi_scan(false);
@@ -147,6 +161,62 @@ static int env_ufs_load(void)
 	ufs->bd = bd;
 	ufs->write_bl_len = 0x1000;
 	ufs->read_bl_len = 0x1000;
+
+	return 0;
+}
+
+#if defined(CONFIG_SYS_REDUNDAND_ENVIRONMENT)
+static int env_ufs_load(void)
+{
+	u32 offset1, offset2;
+	int read1_fail, read2_fail;
+	int ret;
+	const char *errmsg = NULL;
+
+	ALLOC_CACHE_ALIGN_BUFFER(env_t, tmp_env1, 1);
+	ALLOC_CACHE_ALIGN_BUFFER(env_t, tmp_env2, 1);
+
+	ret = init_ufs_for_env(ufs);
+	if (ret) {
+		errmsg = "!UFS init failed";
+		goto err;
+	}
+
+	if (ufs_get_env_addr(ufs, 0, &offset1) ||
+	    ufs_get_env_addr(ufs, 1, &offset2)) {
+		ret = -EIO;
+		goto fini;
+	}
+
+	read1_fail = read_env(ufs, CONFIG_ENV_SIZE, offset1, tmp_env1);
+	read2_fail = read_env(ufs, CONFIG_ENV_SIZE, offset2, tmp_env2);
+
+	ret = env_import_redund((char *)tmp_env1, read1_fail, (char *)tmp_env2,
+				read2_fail, H_EXTERNAL);
+
+fini:
+	fini_ufs_for_env(ufs);
+err:
+	if (ret)
+		env_set_default(errmsg, 0);
+
+	return ret;
+}
+#else /* ! CONFIG_SYS_REDUNDAND_ENVIRONMENT */
+static int env_ufs_load(void)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
+	u32 offset;
+	int ret;
+	const char *errmsg = NULL;
+	env_t *ep = NULL;
+
+	ret = init_ufs_for_env(ufs);
+	if (ret) {
+		errmsg = "!UFS init failed";
+		ret = -ENODEV;
+		goto err;
+	}
 
 	if (ufs_get_env_addr(ufs, 0, &offset)) {
 		ret = -EIO;
@@ -167,12 +237,13 @@ static int env_ufs_load(void)
 
 fini:
 	fini_ufs_for_env(ufs);
-
+err:
 	if (ret)
 		env_set_default(errmsg, 0);
 
 	return ret;
 }
+#endif /* CONFIG_SYS_REDUNDAND_ENVIRONMENT */
 
 U_BOOT_ENV_LOCATION(ufs) = {
 	.location	= ENVL_UFS,

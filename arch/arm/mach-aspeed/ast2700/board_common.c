@@ -24,6 +24,18 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+/* MAC cannot DMA to DRAM at 0x4_F000_0000 and above on UFS boot (measured) */
+#define AST2700_MAC_DMA_LIMIT	0x4e0000000ULL
+
+phys_addr_t board_get_usable_ram_top(phys_size_t total_size)
+{
+	printf("board_get_usable_ram_top: gd->ram_top 0x%lld\n", gd->ram_top);
+	if (gd->ram_top > AST2700_MAC_DMA_LIMIT)
+		return AST2700_MAC_DMA_LIMIT;
+
+	return gd->ram_top;
+}
+
 int dram_init(void)
 {
 	int ret;
