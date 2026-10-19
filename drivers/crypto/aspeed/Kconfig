@@ -28,6 +28,18 @@ config ASPEED_RSSS
 	  signature/verification, It's a new hardware design from
           ast2700 for simply SRAM layout.
 
+config ASPEED_ECDSA
+	bool "ASPEED ECDSA Engine for ast2700 SoCs"
+	depends on ECDSA_VERIFY
+	depends on ASPEED_AST2700
+	help
+	  Select this option to enable a driver for using the on-chip ECC/ECDSA
+	  hardware engine in AST27xx BMC SoCs for ECDSA signature verification.
+
+	  Enabling this allows the use of ECDSA signature verification in
+	  hardware without requiring the software implementation. It also
+	  improves performance and saves code size.
+
 config ASPEED_CPTRA_SHA
 	bool "Caliptra SHA ACC for Aspeed SoCs"
 	depends on DM_HASH
