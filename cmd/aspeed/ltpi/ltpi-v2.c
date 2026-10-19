@@ -1095,6 +1095,13 @@ static int ltpi_get_link_partner(struct ltpi_priv *ltpi)
 	return FIELD_GET(REG_LTPI_LINK_PARTNER_FLAG, reg);
 }
 
+static int ltpi_get_oem_frame_support(struct ltpi_priv *ltpi)
+{
+	uint32_t reg = readl((void *)ltpi->base + LTPI_DEFAULT_CON_LOW);
+
+	return FIELD_GET(REG_LTPI_DEFAULT_CON_OEM_FRAME_SUPPORT, reg);
+}
+
 static void ltpi_show_status(struct ltpi_priv *ltpi)
 {
 	int speed, ret;
@@ -1246,7 +1253,8 @@ static int do_ltpi(struct cmd_tbl *cmdtp, int flag, int argc,
 		ltpi_sio_en = SCU1_MISC_SIO_LTPI0_EN;
 
 		writel(reg, (void *)ltpi_data[0].base + LTPI_AHB_CTRL0);
-		if (ltpi_get_link_partner(&ltpi_data[0]))
+		if (ltpi_get_link_partner(&ltpi_data[0]) &&
+		    ltpi_get_oem_frame_support(&ltpi_data[0]))
 			ltpi_hpm_init_sgpiom(LTPI0_SGPIOM1_REG);
 
 		if (pin_strap & SCU1_HWSTRAP1_LTPI1_EN) {
@@ -1259,7 +1267,8 @@ static int do_ltpi(struct cmd_tbl *cmdtp, int flag, int argc,
 				writel(0, (void *)ltpi_data[1].base + LTPI_DATA_CH_CFG0);
 			}
 			writel(reg, (void *)ltpi_data[1].base + LTPI_AHB_CTRL0);
-			if (ltpi_get_link_partner(&ltpi_data[1]))
+			if (ltpi_get_link_partner(&ltpi_data[1]) &&
+			    ltpi_get_oem_frame_support(&ltpi_data[1]))
 				ltpi_hpm_init_sgpiom(LTPI1_SGPIOM1_REG);
 			ltpi_sio_en |= SCU1_MISC_SIO_LTPI1_EN;
 		}
