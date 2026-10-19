@@ -7,3 +7,4 @@ obj-$(CONFIG_AST2700_CMD_DPTEST) += dptest_2700.o
 obj-$(CONFIG_CMD_NETTEST) += nettest/
 obj-$(CONFIG_CMD_ASPEED_MBOX) += aspeed_mbox.o
 obj-$(CONFIG_CMD_CPTRA_MCI) += cptra_mci.o
+obj-$(CONFIG_CMD_ASPEED_ECDSA) += aspeed_ecdsa.o

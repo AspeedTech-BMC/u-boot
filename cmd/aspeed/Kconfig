@@ -62,6 +62,15 @@ config CMD_ASPEED_MBOX
 	help
 	  Enable ASPEED Mailbox commands for AST2700A1 SoC.
 
+config CMD_ASPEED_ECDSA
+	bool "ASPEED ECDSA engine utility"
+	depends on ASPEED_ECDSA
+	depends on SHA256 && SHA384
+	default n
+	help
+	  Enable commands for exercising the on-chip AST2700 ECDSA engine
+	  (aspeed_ecdsa driver), e.g. forcing a probe and running verify().
+
 config CMD_CPTRA_MCI
 	bool "Caliptra-SS MCI mailbox utility"
 	select ASPEED_CPTRA_MCI_MBOX
