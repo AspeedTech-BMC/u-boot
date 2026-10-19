@@ -166,6 +166,14 @@
 			reset-names = "rsa", "sha3", "sm3", "sm4";
 		};
 
+		ecdsa: ecdsa@12c1e000 {
+			compatible = "aspeed,ast2700-ecdsa";
+			reg = <0 0x12c1e000 0 0x1000>;
+			clocks = <&soc0_clk SCU0_CLK_GATE_ECDSACLK>;
+			resets = <&soc0_rst SCU0_RESET_ECC>;
+			status = "disabled";
+		};
+
 		emmc_controller: sdc@12090000 {
 			compatible = "aspeed,ast2700-sd-controller";
 			reg = <0 0x12090000 0 0x100>;

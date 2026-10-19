@@ -35,6 +35,10 @@
 	bootph-all;
 };
 
+&ecdsa {
+	bootph-all;
+};
+
 &soc0_clk {
 	bootph-all;
 };
