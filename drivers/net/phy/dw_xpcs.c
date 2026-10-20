@@ -32,6 +32,7 @@
 #define TX0_RATE_MASK						GENMASK(2, 0)
 #define TX0_RATE(x) \
 		FIELD_PREP(TX0_RATE_MASK, x)
+#define BAUD_2							0x1
 #define BAUD_8							0x3
 #define DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL0		0x8036
 #define TX_EQ_MAIN_MASK						GENMASK(13, 8)
@@ -117,6 +118,7 @@
 #define PCS_TYPE_SEL(x) \
 		FIELD_PREP(PCS_TYPE_SEL_MASK, x)
 #define SEL_10GBASE_X						0x1
+#define SEL_5GBASE_R						0xF
 #define DW_VR_MII_DIG_CTRL1				0x8000
 #define MAC_AUTO_SW						BIT(9)
 #define DW_VR_MII_AN_CTRL				0x8001
@@ -205,7 +207,7 @@ static int xpcs_config_10gbaser(struct phy_device *phydev)
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
 			     DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL0,
 			     CTLE_BOOST_0_MASK | CTLE_POLE_0_MASK,
-			     CTLE_BOOST_0(0xa) | CTLE_POLE_0(0x1));
+			     CTLE_BOOST_0(0xa) | CTLE_POLE_0(0x2));
 	if (ret < 0)
 		return ret;
 
@@ -297,6 +299,132 @@ static int xpcs_config_10gbaser(struct phy_device *phydev)
 	return ret;
 }
 
+static int xpcs_config_5gbaser(struct phy_device *phydev)
+{
+	int ret, val;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+			     DW_SR_XS_PCS_CTRL2,
+			     PCS_TYPE_SEL_MASK,
+			     PCS_TYPE_SEL(SEL_5GBASE_R));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+			    DW_VR_XS_PMA_MP_16G_MPLLA_CTRL3,
+			    MPLLA_BANDWIDTH(0xa03e));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_RATE_CTRL,
+			     TX0_RATE_MASK,
+			     TX0_RATE(BAUD_2));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_RATE_CTRL,
+			     RX0_RATE_MASK,
+			     RX0_RATE(BAUD_2));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL0,
+			     CTLE_BOOST_0_MASK | CTLE_POLE_0_MASK,
+			     CTLE_BOOST_0(0xa) | CTLE_POLE_0(0x2));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_MISC_CTRL0,
+			     RX0_MISC_MASK, RX0_MISC(0x2));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_16G_25G_RX_IQ_CTRL0,
+			     RX0_DELTA_IQ_MASK, RX0_DELTA_IQ(0x3));
+	if (ret < 0)
+		return ret;
+
+	ret = xpcs_vr_reset(phydev);
+	if (ret < 0) {
+		pr_err("VR Reset failed\n");
+		return ret;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+			     DW_VR_XS_PCS_DEBUG_CTRL,
+			     SUPRESS_LOS_DET | RX_DT_EN_CTL,
+			     SUPRESS_LOS_DET | RX_DT_EN_CTL);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					SR_XS_PCS_CTRL1, val,
+					!(val & RST),
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("Reset done failed\n");
+		return ret;
+	}
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PMAPMD,
+					DW_VR_XS_PMA_RX_LSTS, val,
+					val & RX_VALID_0,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("RX invlaid\n");
+		return ret;
+	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			     RX_AD_REQ, RX_AD_REQ);
+	if (ret < 0)
+		return ret;
+#if FPGA
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PMAPMD,
+					DW_VR_XS_PMA_MP_12G_16G_25G_MISC_STS, val,
+					val & RX_ADPT_ACK,
+					1000, 500000, true);
+	if (ret < 0) {
+		pr_err("EQ ACK failed\n");
+		return ret;
+	}
+#endif
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_EQ_CTRL4,
+			     RX_AD_REQ, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL0,
+			     TX_EQ_MAIN_MASK, TX_EQ_MAIN(0x24));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_EQ_CTRL1,
+			     TX_EQ_POST_MASK, TX_EQ_POST(0x10));
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					MDIO_STAT1, val,
+					val & MDIO_STAT1_LSTATUS,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("RX link up failed\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 static int xpcs_config_usxgmii(struct phy_device *phydev)
 {
 	int ret, val;
@@ -310,7 +438,7 @@ static int xpcs_config_usxgmii(struct phy_device *phydev)
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
 			     DW_VR_XS_PMA_MP_16G_25G_RX_EQ_CTRL0,
 			     CTLE_BOOST_0_MASK | CTLE_POLE_0_MASK,
-			     CTLE_BOOST_0(0xa) | CTLE_POLE_0(0x1));
+			     CTLE_BOOST_0(0xa) | CTLE_POLE_0(0x2));
 	if (ret < 0)
 		return ret;
 
@@ -458,14 +586,14 @@ static int xpcs_config_sgmii(struct phy_device *phydev)
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
 			     DW_VR_XS_PMA_MP_12G_16G_25G_TX_RATE_CTRL,
 			     TX0_RATE_MASK,
-			     TX0_RATE(BAUD_8));
+			     TX0_RATE(BAUD_2));
 	if (ret < 0)
 		return ret;
 
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
 			     DW_VR_XS_PMA_MP_12G_16G_25G_RX_RATE_CTRL,
 			     RX0_RATE_MASK,
-			     RX0_RATE(BAUD_8));
+			     RX0_RATE(BAUD_2));
 	if (ret < 0)
 		return ret;
 
@@ -619,6 +747,8 @@ static int xpcs_config(struct phy_device *phydev)
 
 	if (phydev->interface == PHY_INTERFACE_MODE_10GBASER)
 		ret = xpcs_config_10gbaser(phydev);
+	else if (phydev->interface == PHY_INTERFACE_MODE_5GBASER)
+		ret = xpcs_config_5gbaser(phydev);
 	else if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
 		ret = xpcs_config_usxgmii(phydev);
 	else if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
@@ -731,6 +861,26 @@ static int xpcs_10gbaser_status(struct phy_device *phydev)
 	return ret;
 }
 
+static int xpcs_5gbaser_status(struct phy_device *phydev)
+{
+	int ret = 0, val;
+
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					MDIO_STAT1, val,
+					val & MDIO_STAT1_LSTATUS,
+					1000, 100000, true);
+	if (ret < 0) {
+		pr_err("rx link up timeout\n");
+		return ret;
+	}
+
+	phydev->speed = SPEED_5000;
+	phydev->duplex = DUPLEX_FULL;
+	phydev->link = true;
+
+	return ret;
+}
+
 static int xpcs_sgmii_nway_status(struct phy_device *phydev)
 {
 	int ret = 0, val, status;
@@ -782,6 +932,8 @@ static int xpcs_startup(struct phy_device *phydev)
 
 	if (phydev->interface == PHY_INTERFACE_MODE_10GBASER)
 		ret = xpcs_10gbaser_status(phydev);
+	else if (phydev->interface == PHY_INTERFACE_MODE_5GBASER)
+		ret = xpcs_5gbaser_status(phydev);
 	else if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
 		ret = xpcs_usxgmii_nway_status(phydev);
 	else if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
