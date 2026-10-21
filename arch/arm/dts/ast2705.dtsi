@@ -7,14 +7,6 @@
 	};
 
 	soc1: soc@14000000 {
-		mac0: ftgmac@14050000 {
-			compatible = "aspeed,ast2705-mac", "faraday,ftgmac100";
-		};
-
-		mac1: ftgmac@14060000 {
-			compatible = "aspeed,ast2705-mac", "faraday,ftgmac100";
-		};
-
 		/delete-node/ ftgmac@14070000;
 
 		xgmac: ethernet@140a0000 {
