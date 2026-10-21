@@ -64,7 +64,6 @@ enum ftgmac100_model {
 	FTGMAC100_MODEL_ASPEED,
 	FTGMAC100_MODEL_AST2600,
 	FTGMAC100_MODEL_AST2700,
-	FTGMAC100_MODEL_AST2705,
 };
 
 union ftgmac100_dma_addr {
@@ -433,8 +432,7 @@ static int ftgmac100_start(struct udevice *dev)
 		FTGMAC100_MACCR_RX_RUNT |
 		FTGMAC100_MACCR_RX_BROADPKT;
 
-	if ((data == FTGMAC100_MODEL_AST2700 ||
-	     data == FTGMAC100_MODEL_AST2705) &&
+	if (data == FTGMAC100_MODEL_AST2700 &&
 	    (priv->phydev->interface == PHY_INTERFACE_MODE_RMII ||
 	     priv->phydev->interface == PHY_INTERFACE_MODE_NCSI))
 		maccr |= FTGMAC100_MACCR_RMII_ENABLE;
@@ -822,8 +820,7 @@ static int ftgmac100_of_to_plat(struct udevice *dev)
 
 	if (data == FTGMAC100_MODEL_ASPEED ||
 	    data == FTGMAC100_MODEL_AST2600 ||
-	    data == FTGMAC100_MODEL_AST2700 ||
-	    data == FTGMAC100_MODEL_AST2705) {
+	    data == FTGMAC100_MODEL_AST2700) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
 	} else {
@@ -947,7 +944,6 @@ static const struct udevice_id ftgmac100_ids[] = {
 	{ .compatible = "aspeed,ast2500-mac", .data = FTGMAC100_MODEL_ASPEED },
 	{ .compatible = "aspeed,ast2600-mac", .data = FTGMAC100_MODEL_AST2600 },
 	{ .compatible = "aspeed,ast2700-mac", .data = FTGMAC100_MODEL_AST2700 },
-	{ .compatible = "aspeed,ast2705-mac", .data = FTGMAC100_MODEL_AST2705 },
 	{}
 };
 
