@@ -24,6 +24,7 @@
 #include <misc.h>
 #include <asm/arch/otp_ast2700.h>
 #include <display_options.h>
+#include <u-boot/otp_ipc.h>
 #include "otp_info_ast2700.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -298,18 +299,38 @@ static void buf_print(u8 *buf, int len)
 	printf("\n");
 }
 
+/*
+ * Native OTP controller access takes priority; this only ever returns true
+ * when CONFIG_ASPEED_OTP_IPC is enabled AND do_driver_init() already tried
+ * and failed to bind the local OTP device (otp_dev left NULL), e.g. because
+ * OTP ownership is locked to the BootMCU (master protection).
+ */
+static bool otp_use_ipc(void)
+{
+	return IS_ENABLED(CONFIG_ASPEED_OTP_IPC) && !otp_dev;
+}
+
 static int otp_read(u32 offset, u16 *data)
 {
+	if (otp_use_ipc())
+		return otp_ipc_read(offset, 1, data);
+
 	return misc_read(otp_dev, offset, data, 1);
 }
 
 static int otp_prog(u32 offset, u16 data)
 {
+	if (otp_use_ipc())
+		return otp_ipc_program(offset, 1, &data);
+
 	return misc_write(otp_dev, offset, &data, 1);
 }
 
 static int otp_prog_multi(u32 offset, u16 *data, int num)
 {
+	if (otp_use_ipc())
+		return otp_ipc_program(offset, num, data);
+
 	return misc_write(otp_dev, offset, data, num);
 }
 
@@ -353,19 +374,42 @@ static int otp_read_secure(u32 offset, u16 *data)
 	return otp_read(offset + SEC_REGION_START_ADDR, data);
 }
 
+/*
+ * Bulk read starting at absolute OTP address addr. Native access has no
+ * per-call size limit; the IPC mailbox message does, so chunk at
+ * OTP_IPC_READ_MAX_WORDS there to keep round-trips to a minimum.
+ */
+static int otp_read_multi(u32 addr, u16 *data, int num)
+{
+	int chunk;
+	int ret;
+
+	if (!otp_use_ipc())
+		return misc_read(otp_dev, addr, data, num);
+
+	while (num > 0) {
+		chunk = num > OTP_IPC_READ_MAX_WORDS ? OTP_IPC_READ_MAX_WORDS : num;
+
+		ret = otp_ipc_read(addr, chunk, data);
+		if (ret)
+			return ret;
+
+		addr += chunk;
+		data += chunk;
+		num -= chunk;
+	}
+
+	return 0;
+}
+
 static int otp_read_secure_multi(u32 offset, u16 *data, int num)
 {
-	return misc_read(otp_dev, offset + SEC_REGION_START_ADDR, data, num);
+	return otp_read_multi(offset + SEC_REGION_START_ADDR, data, num);
 }
 
 static int otp_read_cptra(u32 offset, u16 *data)
 {
 	return otp_read(offset + CAL_REGION_START_ADDR, data);
-}
-
-static int otp_read_puf(u32 offset, u16 *data)
-{
-	return otp_read(offset + SW_PUF_REGION_START_ADDR, data);
 }
 
 static int otp_print_rom(u32 offset, int w_count)
@@ -2054,8 +2098,9 @@ static int otp_test_provision(void)
 {
 	sha512_context ctx;
 	uint8_t digest[SHA384_SUM_LEN];
-	uint16_t word;
-	int i;
+	u16 buf[OTP_IPC_READ_MAX_WORDS];
+	int remaining, chunk;
+	int i, j;
 
 	/* Check ROM patch version */
 	int rom_patch_ver = readl(OTP_ROM_PATCH_VERSION_ADDR);
@@ -2069,12 +2114,17 @@ static int otp_test_provision(void)
 
 	/* SHA384 over OTPROM~OTPSEC (all regions except OTPCAL and OTPPUF) */
 	sha384_starts(&ctx);
-	for (i = ROM_REGION_START_ADDR; i < SEC_REGION_END_ADDR; i++) {
-		if (otp_read(i, &word) != OTP_SUCCESS) {
+	i = ROM_REGION_START_ADDR;
+	remaining = SEC_REGION_END_ADDR - ROM_REGION_START_ADDR;
+	while (remaining > 0) {
+		chunk = remaining > ARRAY_SIZE(buf) ? ARRAY_SIZE(buf) : remaining;
+		if (otp_read_multi(i, buf, chunk) != OTP_SUCCESS) {
 			printf("OTP read failed at offset 0x%x\n", i);
 			return OTP_FAILURE;
 		}
-		sha384_update(&ctx, (uint8_t *)&word, sizeof(word));
+		sha384_update(&ctx, (uint8_t *)buf, chunk * sizeof(buf[0]));
+		i += chunk;
+		remaining -= chunk;
 	}
 	sha384_finish(&ctx, digest);
 
@@ -2089,43 +2139,57 @@ static int otp_test_provision(void)
 	printf("OTPROM~OTPSEC hash check passed\n");
 
 	/* OTPCAL per-field validation */
-	for (i = 0; i < 0x292; i++) {
-		if (otp_read_cptra(i, &word) != OTP_SUCCESS) {
+	i = 0;
+	remaining = 0x292;
+	while (remaining > 0) {
+		chunk = remaining > ARRAY_SIZE(buf) ? ARRAY_SIZE(buf) : remaining;
+		if (otp_read_multi(CAL_REGION_START_ADDR + i, buf, chunk) != OTP_SUCCESS) {
 			printf("OTPCAL read failed at offset 0x%x\n", i);
 			return OTP_FAILURE;
 		}
 
-		if (i < 0x12) {
-			if (word != 0) {
-				printf("OTPCAL[0x%03x] should be zero but is 0x%04x\n", i, word);
-				return OTP_FAILURE;
-			}
-		} else if ((i >= 0x12 && i <= 0x2a) ||
-			   i == 0x36 ||
-			   (i >= 0x38 && i <= 0x3f) ||
-			   i == 0x62 ||
-			   (i >= 0x262 && i <= 0x291)) {
-			if (word == 0) {
-				printf("OTPCAL[0x%03x] should be non-zero but is 0\n", i);
-				return OTP_FAILURE;
+		for (j = 0; j < chunk; j++, i++) {
+			if (i < 0x12) {
+				if (buf[j] != 0) {
+					printf("OTPCAL[0x%03x] should be zero but is 0x%04x\n",
+					       i, buf[j]);
+					return OTP_FAILURE;
+				}
+			} else if ((i >= 0x12 && i <= 0x2a) ||
+				   i == 0x36 ||
+				   (i >= 0x38 && i <= 0x3f) ||
+				   i == 0x62 ||
+				   (i >= 0x262 && i <= 0x291)) {
+				if (buf[j] == 0) {
+					printf("OTPCAL[0x%03x] should be non-zero but is 0\n", i);
+					return OTP_FAILURE;
+				}
 			}
 		}
+
+		remaining -= chunk;
 	}
 	printf("OTPCAL region is valid\n");
 
 	/* OTPPUF: each 4-byte chunk must be non-zero */
-	for (i = 0; i < OTP_SWPUF_REGION_SIZE; i += 2) {
-		uint16_t w0, w1;
-
-		if (otp_read_puf(i, &w0) != OTP_SUCCESS ||
-		    otp_read_puf(i + 1, &w1) != OTP_SUCCESS) {
+	i = 0;
+	remaining = OTP_SWPUF_REGION_SIZE;
+	while (remaining > 0) {
+		chunk = remaining > ARRAY_SIZE(buf) ? ARRAY_SIZE(buf) : remaining;
+		if (otp_read_multi(SW_PUF_REGION_START_ADDR + i, buf, chunk) != OTP_SUCCESS) {
 			printf("OTPPUF read failed at offset 0x%x\n", i);
 			return OTP_FAILURE;
 		}
-		if (w0 == 0 && w1 == 0) {
-			printf("OTPPUF has zero 4-byte chunk at offset 0x%x\n", i);
-			return OTP_FAILURE;
+
+		for (j = 0; j + 1 < chunk; j += 2) {
+			if (buf[j] == 0 && buf[j + 1] == 0) {
+				printf("OTPPUF has zero 4-byte chunk at offset 0x%x\n", i + j);
+				return OTP_FAILURE;
+			}
 		}
+
+		i += chunk;
+		remaining -= chunk;
 	}
 	printf("OTPPUF region is valid\n");
 
@@ -2445,10 +2509,36 @@ static const struct {
 	{ "puf",       OTP_REGION_ID_PUF      },
 };
 
+static int otp_ecc_get_status(int *ecc_en)
+{
+	if (otp_use_ipc())
+		return otp_ipc_ecc_get_status(ecc_en);
+
+	return misc_ioctl(otp_dev, GET_ECC_STATUS, ecc_en);
+}
+
+/*
+ * Native path (SET_ECC_ENABLE/SET_ECC_DISABLE) only flips aspeed_otp's
+ * in-RAM gbl_ecc_en (see aspeed_otp_ecc_init()/aspeed_otp_probe() in
+ * drivers/soc/aspeed/aspeed-otp.c) for the current u-boot session - it's
+ * never written back to OTP hardware, so it doesn't survive reset and
+ * has no effect on whatever OS boots next.
+ */
+static int otp_ecc_set_enable(int enable)
+{
+	if (otp_use_ipc())
+		return otp_ipc_ecc_set_enable(enable);
+
+	return misc_ioctl(otp_dev, enable ? SET_ECC_ENABLE : SET_ECC_DISABLE, NULL);
+}
+
 static int otp_get_ecc_policy(u32 region, u32 *ecc_en, u32 *ecc_supported)
 {
 	struct otp_ecc_policy policy;
 	int ret;
+
+	if (otp_use_ipc())
+		return otp_ipc_ecc_get_policy(region, ecc_en, ecc_supported);
 
 	policy.region = region;
 
@@ -2462,9 +2552,18 @@ static int otp_get_ecc_policy(u32 region, u32 *ecc_en, u32 *ecc_supported)
 	return 0;
 }
 
+/*
+ * Native path (SET_ECC_POLICY) only mutates aspeed_otp's in-RAM
+ * region_ecc_tbl[] for the current u-boot session - not written back to
+ * OTP hardware, so it doesn't survive reset and has no effect on
+ * whatever OS boots next.
+ */
 static int otp_set_ecc_policy(u32 region, u32 ecc_en)
 {
 	struct otp_ecc_policy policy;
+
+	if (otp_use_ipc())
+		return otp_ipc_ecc_set_policy(region, ecc_en);
 
 	policy.region = region;
 	policy.ecc_en = ecc_en;
@@ -2522,6 +2621,9 @@ static int otp_ecc_policy_dump_all(int global_ecc_en)
 		       effective_en ? "on" : "off",
 		       (global_ecc_en == OTP_ECC_ENABLE && ecc_supported) ? " (forced)" : "");
 	}
+
+	if (!otp_use_ipc())
+		printf("note: native backend - this table reflects in-RAM state for the current u-boot session only\n");
 
 	return fail ? CMD_RET_FAILURE : CMD_RET_SUCCESS;
 }
@@ -2585,7 +2687,7 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 	int ecc_en = 0;
 
 	/* Get ECC status */
-	ret = misc_ioctl(otp_dev, GET_ECC_STATUS, &ecc_en);
+	ret = otp_ecc_get_status(&ecc_en);
 	if (ret)
 		return CMD_RET_FAILURE;
 
@@ -2604,6 +2706,8 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 			printf("OTP ECC is disabled\n");
 			printf("note: each region's ECC now follows its own 'ecc policy' setting instead\n");
 		}
+		if (!otp_use_ipc())
+			printf("note: native backend - this reflects in-RAM state for the current u-boot session only\n");
 
 		return CMD_RET_SUCCESS;
 
@@ -2611,7 +2715,7 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 		if (ecc_en == OTP_ECC_ENABLE) {
 			printf("OTP ECC is already enabled\n");
 		} else {
-			ret = misc_ioctl(otp_dev, SET_ECC_ENABLE, NULL);
+			ret = otp_ecc_set_enable(1);
 			if (ret)
 				return CMD_RET_FAILURE;
 
@@ -2625,7 +2729,7 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 		if (ecc_en == OTP_ECC_DISABLE) {
 			printf("OTP ECC is already disabled\n");
 		} else {
-			ret = misc_ioctl(otp_dev, SET_ECC_DISABLE, NULL);
+			ret = otp_ecc_set_enable(0);
 			if (ret)
 				return CMD_RET_FAILURE;
 
@@ -2651,6 +2755,7 @@ static int do_otpver(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 {
 	printf("OTP tool version: %s\n", OTP_VER);
 	printf("OTP info version: %s\n", OTP_INFO_VER);
+	printf("OTP backend: %s\n", otp_use_ipc() ? "IPC (BootMCU)" : "native");
 
 	return CMD_RET_SUCCESS;
 }
@@ -2735,11 +2840,24 @@ static int do_driver_init(int argc, char *const argv[])
 		return CMD_RET_USAGE;
 	}
 
+	/*
+	 * Native OTP controller access takes priority; only fall back to the
+	 * BootMCU IPC channel if this core has no direct access to it (e.g.
+	 * OTP ownership is locked to BootMCU - see master protection).
+	 */
 	ret = uclass_get_device_by_name(UCLASS_MISC, name, &otp_dev);
-	if (ret)
-		printf("%s: get Aspeed otp driver failed\n", __func__);
+	if (ret) {
+		if (!IS_ENABLED(CONFIG_ASPEED_OTP_IPC)) {
+			printf("%s: get Aspeed otp driver failed\n", __func__);
+			return ret;
+		}
 
-	return ret;
+		debug("%s: native otp driver unavailable (%d), falling back to IPC\n",
+		      __func__, ret);
+		otp_dev = NULL;
+	}
+
+	return 0;
 }
 
 static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
@@ -2756,6 +2874,8 @@ static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 	ret = do_driver_init(argc, argv);
 	if (ret)
 		return ret;
+
+	printf("OTP backend: %s\n", otp_use_ipc() ? "IPC (BootMCU)" : "native");
 
 	/* Drop the otp command */
 	argc--;

@@ -25,6 +25,10 @@ config AST2700_CMD_OTP
 	  AST2700 OTP utility provides read/program multiple
 	  OTP regions.
 	  It also needs Aspeed OTP driver model to support it.
+	  At runtime, the native OTP driver is tried first; if this
+	  core has no direct access to it (e.g. OTP ownership is
+	  locked to BootMCU), it falls back to the BootMCU IPC
+	  channel when ASPEED_OTP_IPC is enabled.
 
 config AST2700_CMD_LTPI_V2
 	bool "ASPEED LTPI V2 command"

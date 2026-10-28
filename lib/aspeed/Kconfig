@@ -8,3 +8,10 @@ config ASPEED_CPTRA
         help
           This enables the Caliptra common library to communicate with BootMCU
           via IPC in AST27xx SoC series.
+
+config ASPEED_OTP_IPC
+	bool "Use BootMCU OTP IPC Library"
+	help
+	  This enables reading and programming BootMCU OTP over a standalone
+	  IPC channel in AST27xx SoC series, independent of the Caliptra IPC
+	  library.

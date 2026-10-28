@@ -347,4 +347,16 @@
 		reg = <0x4 0x31880000 0x0 0x100000>, <0x4 0x31980000 0x0 0x100000>;
 		mboxes = <&mbox2 1>;
 	};
+
+	/*
+	 * OTP-over-IPC: payload fits in the 8-word mailbox message itself,
+	 * so these tx/rx regions are unused placeholders required by the
+	 * aspeed-mbox model. Carved from share_3's unused tail, clear of
+	 * mbox-bootmcu-1 above. Uses channel id 2; id 3 is free.
+	 */
+	mbox-bootmcu-2 {
+		compatible = "aspeed,aspeed-mbox";
+		reg = <0x4 0x31a80000 0x0 0x1000>, <0x4 0x31a81000 0x0 0x1000>;
+		mboxes = <&mbox2 2>;
+	};
 };

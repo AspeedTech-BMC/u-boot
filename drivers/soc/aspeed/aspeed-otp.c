@@ -297,11 +297,20 @@ static bool otp_region_ecc_active(struct aspeed_otp *otp, u32 offset)
 }
 #endif
 
-static void otp_unlock(struct udevice *dev)
+static int otp_unlock(struct udevice *dev)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
+	u32 val;
 
 	writel(OTP_PASSWD, otp->base + OTP_KEY);
+
+	val = readl(otp->base + OTP_KEY);
+	if (val != 1) {
+		printf("%s: unlock failed, key reg readback:0x%x\n", __func__, val);
+		return -EACCES;
+	}
+
+	return 0;
 }
 
 static int wait_complete(struct udevice *dev)
@@ -575,7 +584,9 @@ static int aspeed_otp_probe(struct udevice *dev)
 	memcpy(otp->region_ecc_tbl, otp_region_ecc_defaults, sizeof(otp->region_ecc_tbl));
 #endif
 
-	otp_unlock(dev);
+	rc = otp_unlock(dev);
+	if (rc)
+		return rc;
 
 	/* OTP ECC init */
 	rc = aspeed_otp_ecc_init(dev);
