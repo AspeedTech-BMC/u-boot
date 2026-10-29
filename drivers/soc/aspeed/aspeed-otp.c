@@ -24,6 +24,7 @@
 #include <dm.h>
 #include <misc.h>
 #include <clk.h>
+#include <linux/bitfield.h>
 #include <asm/arch/otp_ast2700.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -132,6 +133,19 @@ DECLARE_GLOBAL_DATA_PTR;
 #define OTP_DAP				0x500
 
 #define OTP_DAP_CFG_RQ			0x538
+
+/*
+ * DAP timing register. u-boot only resets its VRR field (see below); the
+ * Zephyr-side driver additionally uses this register for normal/margin
+ * read switching via its IREF field (bits[4:0]).
+ * Must stay in lockstep with the Zephyr-side driver's OTP_DAP_RQ - same
+ * physical register, same offset.
+ */
+#define OTP_DAP_RQ			0x530
+
+/* OTP_DAP_RQ bits[11:8]: VRR level. Default 0xe selects VRR = 2.0V. */
+#define OTP_DAP_VRR_MASK		GENMASK(11, 8)
+#define OTP_DAP_VRR_DEFAULT		0xeu
 
 /* OTP status: [0] */
 #define OTP_STS_IDLE			0x0
@@ -396,11 +410,34 @@ static void otp_ecc_cfg(struct udevice *dev, bool ecc_en, bool auto_cfg)
 #endif
 }
 
+#ifdef CONFIG_ARCH_ASPEED
+/*
+ * Margin-mode switches or a prior program command can leave OTP_DAP_RQ's
+ * VRR field at a non-default value, so force it back to default before/
+ * after every OTP access.
+ */
+static void otp_set_dap_vrr_default(struct udevice *dev)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+	u32 val;
+
+	val = readl(otp->base + OTP_DAP_RQ);
+	val = (val & ~OTP_DAP_VRR_MASK) | FIELD_PREP(OTP_DAP_VRR_MASK, OTP_DAP_VRR_DEFAULT);
+	writel(val, otp->base + OTP_DAP_RQ);
+}
+#else
+static inline void otp_set_dap_vrr_default(struct udevice *dev)
+{
+}
+#endif
+
 static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 	int ret;
 	bool ecc_en = otp_region_ecc_active(otp, offset);
+
+	otp_set_dap_vrr_default(dev);
 
 	writel(offset, otp->base + OTP_ADDR);
 	otp_ecc_cfg(dev, ecc_en, false);
@@ -424,6 +461,7 @@ static int otp_read_data(struct udevice *dev, u32 offset, u16 *data)
 int otp_prog_data(struct udevice *dev, u32 offset, u16 data)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
+	int ret;
 
 	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(0x0, otp->base + OTP_PMC_CQ);
@@ -432,12 +470,16 @@ int otp_prog_data(struct udevice *dev, u32 offset, u16 data)
 	writel(data, otp->base + OTP_WDATA_0);
 	writel(OTP_CMD_PROG, otp->base + OTP_CMD);
 
-	return wait_complete(dev);
+	ret = wait_complete(dev);
+	otp_set_dap_vrr_default(dev);
+
+	return ret;
 }
 
 int otp_prog_multi_data(struct udevice *dev, u32 offset, u32 *data, int count)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
+	int ret;
 
 	writel(otp_region_ecc_active(otp, offset), otp->base + OTP_ECC_EN);
 	writel(0x0, otp->base + OTP_PMC_CQ);
@@ -448,7 +490,10 @@ int otp_prog_multi_data(struct udevice *dev, u32 offset, u32 *data, int count)
 
 	writel(OTP_CMD_PROG_MULTI, otp->base + OTP_CMD);
 
-	return wait_complete(dev);
+	ret = wait_complete(dev);
+	otp_set_dap_vrr_default(dev);
+
+	return ret;
 }
 
 static int aspeed_otp_read(struct udevice *dev, int offset,
@@ -556,6 +601,8 @@ static int aspeed_otp_ecc_init(struct udevice *dev)
 	struct aspeed_otp *otp = dev_get_priv(dev);
 	int ret;
 	u32 val;
+
+	otp_set_dap_vrr_default(dev);
 
 	/* Check cfg_ecc_en */
 	writel(0, otp->base + OTP_ECC_EN);
