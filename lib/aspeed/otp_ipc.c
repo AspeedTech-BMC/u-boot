@@ -38,8 +38,13 @@ static int do_mbox_ioctl(const char *dev_name, int cmd, void *buff)
 
 static int otp_ipc_call(const char *dev_name, u32 *req, u32 *resp)
 {
+	static u8 next_seq;
 	ulong start;
+	u8 seq;
 	int ret;
+
+	seq = ++next_seq;
+	req[1] |= ((u32)seq << OTP_IPC_SEQ_SHIFT);
 
 	ret = do_mbox_ioctl(dev_name, MBOX_IOCTL_SEND, req);
 	if (ret < 0)
@@ -48,8 +53,19 @@ static int otp_ipc_call(const char *dev_name, u32 *req, u32 *resp)
 	start = get_timer(0);
 	while (get_timer(start) < OTP_IPC_TIMEOUT_MS) {
 		ret = do_mbox_ioctl(dev_name, MBOX_IOCTL_RECV, resp);
-		if (ret == 0)
-			return (int)resp[0];
+		if (ret == 0) {
+			/* A reply that doesn't echo our seq belongs to a
+			 * call we already gave up on; discard it and keep
+			 * polling for ours within what's left of the budget.
+			 */
+			if (OTP_IPC_RESP_SEQ(resp[0]) != seq) {
+				pr_warn("%s: discarding stale reply (seq %u, expected %u)\n",
+					dev_name, OTP_IPC_RESP_SEQ(resp[0]), seq);
+				continue;
+			}
+
+			return OTP_IPC_RESP_STATUS(resp[0]);
+		}
 
 		if (ctrlc())
 			return -EINTR;
