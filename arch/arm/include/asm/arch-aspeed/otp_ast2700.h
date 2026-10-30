@@ -20,6 +20,17 @@ enum otp_ecc_codes {
 };
 
 /*
+ * GET_ECC_STATUS result (replaces a plain enable/disable): distinguishes why
+ * ECC is on, since a hardware-latched strap can never be turned back off for
+ * the life of the session while a software-temporary enable still can.
+ */
+enum otp_ecc_global_status {
+	OTP_ECC_GLOBAL_DISABLED = 0,
+	OTP_ECC_GLOBAL_SW_ENABLED,
+	OTP_ECC_GLOBAL_HW_ENABLED,
+};
+
+/*
  * Per-region ECC policy id, shared between the driver's ECC policy table
  * and the "otp ecc policy" command. Distinct from cmd/aspeed/otp_ast2700.c's
  * own enum otp_region (used for image programming) to avoid name clashes.

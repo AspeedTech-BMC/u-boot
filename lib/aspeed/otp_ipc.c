@@ -115,18 +115,18 @@ int otp_ipc_program(u32 addr, u32 count, const u16 *data)
 	return status;
 }
 
-int otp_ipc_ecc_get_status(int *ecc_en)
+int otp_ipc_ecc_get_status(int *status)
 {
 	u32 req[8] = {0, OTP_IPC_PACK_OP_COUNT(OTP_IPC_OP_ECC_GET_STATUS, 0),
 		      0, 0, 0, 0, 0, 0};
 	u32 resp[8] = {0};
-	int status;
+	int ret;
 
-	status = otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
-	if (status == 0)
-		*ecc_en = (int)resp[1];
+	ret = otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
+	if (ret == 0)
+		*status = (int)resp[1];
 
-	return status;
+	return ret;
 }
 
 int otp_ipc_ecc_set_enable(int enable)

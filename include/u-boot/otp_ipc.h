@@ -27,7 +27,11 @@
  * asks next, instead of risking silently accepting someone else's data.
  *
  * Read/program: word1's lower 16 bits are the OTP word count.
- * ECC_GET_STATUS:  word1's lower 16 bits unused. Response word1 = ecc_en.
+ * ECC_GET_STATUS:  word1's lower 16 bits unused. Response word1 = global ECC
+ *                  status (enum otp_ecc_global_status): 0=disabled, 1=on
+ *                  because software temporarily enabled it, 2=on because the
+ *                  hardware strap forces it (can't be turned off this
+ *                  session).
  * ECC_SET_ENABLE:  word1's lower 16 bits = enable (0/1).
  * ECC_GET_POLICY:  word1's lower 16 bits = region (enum otp_region_id).
  *                  Response word1 = ecc_en, word2 = ecc_supported.
@@ -66,7 +70,7 @@ enum otp_ipc_op {
 
 int otp_ipc_read(u32 addr, u32 count, u16 *out);
 int otp_ipc_program(u32 addr, u32 count, const u16 *data);
-int otp_ipc_ecc_get_status(int *ecc_en);
+int otp_ipc_ecc_get_status(int *status);
 int otp_ipc_ecc_set_enable(int enable);
 int otp_ipc_ecc_get_policy(u32 region, u32 *ecc_en, u32 *ecc_supported);
 int otp_ipc_ecc_set_policy(u32 region, u32 ecc_en);

@@ -2509,17 +2509,22 @@ static const struct {
 	{ "puf",       OTP_REGION_ID_PUF      },
 };
 
-static int otp_ecc_get_status(int *ecc_en)
+/*
+ * Returns enum otp_ecc_global_status, distinguishing ECC being off from the
+ * two ways it can be on: temporarily by software, or latched by a hardware
+ * strap that can't be turned back off for the life of the session.
+ */
+static int otp_ecc_get_status(int *status)
 {
 	if (otp_use_ipc())
-		return otp_ipc_ecc_get_status(ecc_en);
+		return otp_ipc_ecc_get_status(status);
 
-	return misc_ioctl(otp_dev, GET_ECC_STATUS, ecc_en);
+	return misc_ioctl(otp_dev, GET_ECC_STATUS, status);
 }
 
 /*
  * Native path (SET_ECC_ENABLE/SET_ECC_DISABLE) only flips aspeed_otp's
- * in-RAM gbl_ecc_en (see aspeed_otp_ecc_init()/aspeed_otp_probe() in
+ * in-RAM sw_gbl_ecc_en (see aspeed_otp_ecc_init()/aspeed_otp_probe() in
  * drivers/soc/aspeed/aspeed-otp.c) for the current u-boot session - it's
  * never written back to OTP hardware, so it doesn't survive reset and
  * has no effect on whatever OS boots next.
@@ -2530,6 +2535,72 @@ static int otp_ecc_set_enable(int enable)
 		return otp_ipc_ecc_set_enable(enable);
 
 	return misc_ioctl(otp_dev, enable ? SET_ECC_ENABLE : SET_ECC_DISABLE, NULL);
+}
+
+/* OTPSTRAP word that aspeed_otp_ecc_init() reads to latch otp_hw_gbl_ecc_effect */
+#define OTPSTRAP_ECC_EN_W_OFFSET	0xe
+#define OTPSTRAP_ECC_EN_BIT		BIT(0)
+/* bit0 is the real ECC-enable bit; bit1 is an unused dummy bit burned alongside it */
+#define OTPSTRAP_ECC_EN_BURN_VALUE	0x3
+
+/* Set once otp_ecc_hw_enable() burns the fuse this session, so "status" can
+ * flag that the current in-RAM state is stale until the next power cycle.
+ */
+static bool ecc_hw_burn_pending;
+
+/*
+ * Permanently burns the OTPSTRAP ECC-enable fuse, unlike otp_ecc_set_enable()
+ * which only flips a RAM flag for the current session. Once burned, every
+ * future boot reads otp_hw_gbl_ecc_effect == 1 and global ECC can never be
+ * turned off again. Reads the real hardware strap directly rather than any
+ * cached gbl_ecc_en-type state, since this must reflect what's actually
+ * fused regardless of what has or hasn't been probed this session.
+ */
+static int otp_ecc_hw_enable(int nconfirm)
+{
+	u16 val;
+	int ret;
+
+	ret = otp_read_strap(OTPSTRAP_ECC_EN_W_OFFSET, &val);
+	if (ret) {
+		printf("Failed to read OTP strap ECC enable bit\n");
+		return CMD_RET_FAILURE;
+	}
+
+	if (val & OTPSTRAP_ECC_EN_BIT) {
+		printf("OTP strap ECC enable bit is already programmed\n");
+		return CMD_RET_SUCCESS;
+	}
+
+	printf("WARNING: this permanently burns the OTP strap ECC-enable fuse.\n");
+	printf("Global ECC will be forced on by hardware on every future boot and can never be turned off again.\n");
+
+	if (!nconfirm) {
+		printf("type \"YES\" (no quotes) to continue:\n");
+		if (!confirm_yesno()) {
+			printf("Aborting\n");
+			return CMD_RET_FAILURE;
+		}
+	}
+
+	ret = otp_prog(STRAP_REGION_START_ADDR + OTPSTRAP_ECC_EN_W_OFFSET,
+		       OTPSTRAP_ECC_EN_BURN_VALUE);
+	if (ret) {
+		printf("OTP cannot be programmed\n");
+		return CMD_RET_FAILURE;
+	}
+
+	ret = otp_read_strap(OTPSTRAP_ECC_EN_W_OFFSET, &val);
+	if (ret || (val & OTPSTRAP_ECC_EN_BURN_VALUE) != OTPSTRAP_ECC_EN_BURN_VALUE) {
+		printf("OTP strap ECC enable bit readback mismatch, got 0x%x\n", val);
+		return CMD_RET_FAILURE;
+	}
+
+	ecc_hw_burn_pending = true;
+	printf("SUCCESS: OTP strap ECC enable bit burned\n");
+	printf("note: hardware-forced global ECC only takes effect after the next power cycle; this session is unaffected\n");
+
+	return CMD_RET_SUCCESS;
 }
 
 static int otp_get_ecc_policy(u32 region, u32 *ecc_en, u32 *ecc_supported)
@@ -2585,20 +2656,24 @@ static int otp_ecc_policy_region_id(const char *name, u32 *id)
 }
 
 /*
- * global_ecc_en reflects the GET_ECC_STATUS force switch: when it's enabled,
- * the driver forces ECC on for every region with ecc_supported, overriding
- * that region's own ecc_en, while ecc_supported=false regions (rbp/strap)
- * always stay off regardless of the global switch.
+ * global_status (enum otp_ecc_global_status) reflects the GET_ECC_STATUS
+ * force switch: whenever it's not OTP_ECC_GLOBAL_DISABLED, the driver forces
+ * ECC on for every region with ecc_supported, overriding that region's own
+ * ecc_en, while ecc_supported=false regions (rbp/strap) always stay off
+ * regardless of the global switch.
  */
-static int otp_ecc_policy_dump_all(int global_ecc_en)
+static int otp_ecc_policy_dump_all(int global_status)
 {
 	u32 ecc_en, ecc_supported;
 	int effective_en;
 	int ret;
 	int fail = 0;
+	bool global_forced = global_status != OTP_ECC_GLOBAL_DISABLED;
 
-	if (global_ecc_en == OTP_ECC_ENABLE)
-		printf("note: global ECC switch is enabled, forcing ECC on for every capable region below\n");
+	if (global_status == OTP_ECC_GLOBAL_HW_ENABLED)
+		printf("note: global ECC switch is enabled (hardware strap), forcing ECC on for every capable region below\n");
+	else if (global_status == OTP_ECC_GLOBAL_SW_ENABLED)
+		printf("note: global ECC switch is enabled (temporarily, by software), forcing ECC on for every capable region below\n");
 
 	printf("%-14s  %-14s  %s\n", "region", "ecc_supported", "ecc_enabled");
 	printf("----------------------------------------\n");
@@ -2613,13 +2688,13 @@ static int otp_ecc_policy_dump_all(int global_ecc_en)
 		}
 
 		/* global switch forces ECC on for capable regions, no effect otherwise */
-		effective_en = ecc_supported && (global_ecc_en == OTP_ECC_ENABLE || ecc_en);
+		effective_en = ecc_supported && (global_forced || ecc_en);
 
 		printf("%-14s  %-14s  %s%s\n",
 		       otp_ecc_policy_region_tbl[i].name,
 		       ecc_supported ? "yes" : "no",
 		       effective_en ? "on" : "off",
-		       (global_ecc_en == OTP_ECC_ENABLE && ecc_supported) ? " (forced)" : "");
+		       (global_forced && ecc_supported) ? " (forced)" : "");
 	}
 
 	if (!otp_use_ipc())
@@ -2628,7 +2703,7 @@ static int otp_ecc_policy_dump_all(int global_ecc_en)
 	return fail ? CMD_RET_FAILURE : CMD_RET_SUCCESS;
 }
 
-static int do_otpecc_policy(int argc, char *const argv[], int global_ecc_en)
+static int do_otpecc_policy(int argc, char *const argv[], int global_status)
 {
 	u32 region_id;
 	u32 ecc_en;
@@ -2641,11 +2716,16 @@ static int do_otpecc_policy(int argc, char *const argv[], int global_ecc_en)
 		if (argc != 1)
 			return CMD_RET_USAGE;
 
-		return otp_ecc_policy_dump_all(global_ecc_en);
+		return otp_ecc_policy_dump_all(global_status);
 
 	} else if (!strcmp(argv[0], "set")) {
 		if (argc != 3)
 			return CMD_RET_USAGE;
+
+		if (global_status == OTP_ECC_GLOBAL_HW_ENABLED) {
+			printf("OTP ECC policy cannot be set: hardware strap forces global ECC on for this session\n");
+			return CMD_RET_FAILURE;
+		}
 
 		if (otp_ecc_policy_region_id(argv[1], &region_id)) {
 			printf("Unknown OTP region '%s'\n", argv[1]);
@@ -2675,7 +2755,7 @@ static int do_otpecc_policy(int argc, char *const argv[], int global_ecc_en)
 
 		printf("region %s ECC policy set to %s\n", argv[1], ecc_en ? "enabled" : "disabled");
 
-		return otp_ecc_policy_dump_all(global_ecc_en);
+		return otp_ecc_policy_dump_all(global_status);
 	}
 
 	return CMD_RET_USAGE;
@@ -2684,10 +2764,10 @@ static int do_otpecc_policy(int argc, char *const argv[], int global_ecc_en)
 static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int ret;
-	int ecc_en = 0;
+	int global_status = OTP_ECC_GLOBAL_DISABLED;
 
 	/* Get ECC status */
-	ret = otp_ecc_get_status(&ecc_en);
+	ret = otp_ecc_get_status(&global_status);
 	if (ret)
 		return CMD_RET_FAILURE;
 
@@ -2699,52 +2779,81 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 		return CMD_RET_USAGE;
 
 	if (!strcmp(argv[0], "status")) {
-		if (ecc_en == OTP_ECC_ENABLE) {
-			printf("OTP ECC is enabled\n");
+		switch (global_status) {
+		case OTP_ECC_GLOBAL_HW_ENABLED:
+			printf("OTP ECC is enabled (hardware strap, cannot be disabled this session)\n");
 			printf("note: this forces ECC on for every region that supports it, overriding that region's own 'ecc policy' setting. Regions that don't support ECC (rbp/strap) are unaffected and stay disabled regardless.\n");
-		} else {
+			break;
+		case OTP_ECC_GLOBAL_SW_ENABLED:
+			printf("OTP ECC is enabled (temporarily, by software)\n");
+			printf("note: this forces ECC on for every region that supports it, overriding that region's own 'ecc policy' setting. Regions that don't support ECC (rbp/strap) are unaffected and stay disabled regardless.\n");
+			break;
+		default:
 			printf("OTP ECC is disabled\n");
 			printf("note: each region's ECC now follows its own 'ecc policy' setting instead\n");
+			break;
 		}
 		if (!otp_use_ipc())
 			printf("note: native backend - this reflects in-RAM state for the current u-boot session only\n");
+		if (ecc_hw_burn_pending)
+			printf("note: the OTP strap ECC-enable fuse was burned this session - it will take effect after the next power cycle\n");
 
 		return CMD_RET_SUCCESS;
 
-	} else if (!strcmp(argv[0], "enable")) {
-		if (ecc_en == OTP_ECC_ENABLE) {
-			printf("OTP ECC is already enabled\n");
-		} else {
+	} else if (!strcmp(argv[0], "tmp-enable")) {
+		switch (global_status) {
+		case OTP_ECC_GLOBAL_HW_ENABLED:
+			printf("OTP ECC is already enabled (hardware strap)\n");
+			break;
+		case OTP_ECC_GLOBAL_SW_ENABLED:
+			printf("OTP ECC is already enabled (temporarily, by software)\n");
+			break;
+		default:
 			ret = otp_ecc_set_enable(1);
 			if (ret)
 				return CMD_RET_FAILURE;
 
-			ecc_en = OTP_ECC_ENABLE;
+			global_status = OTP_ECC_GLOBAL_SW_ENABLED;
 			printf("OTP ECC is enabled (temporarily)\n");
+			break;
 		}
 
-		return otp_ecc_policy_dump_all(ecc_en);
+		return otp_ecc_policy_dump_all(global_status);
 
-	} else if (!strcmp(argv[0], "disable")) {
-		if (ecc_en == OTP_ECC_DISABLE) {
+	} else if (!strcmp(argv[0], "tmp-disable")) {
+		switch (global_status) {
+		case OTP_ECC_GLOBAL_HW_ENABLED:
+			printf("OTP ECC cannot be disabled: hardware strap forces it on for this session\n");
+			return CMD_RET_FAILURE;
+		case OTP_ECC_GLOBAL_DISABLED:
 			printf("OTP ECC is already disabled\n");
-		} else {
+			break;
+		default:
 			ret = otp_ecc_set_enable(0);
 			if (ret)
 				return CMD_RET_FAILURE;
 
-			ecc_en = OTP_ECC_DISABLE;
+			global_status = OTP_ECC_GLOBAL_DISABLED;
 			printf("OTP ECC is disabled (temporarily)\n");
+			break;
 		}
 
-		return otp_ecc_policy_dump_all(ecc_en);
+		return otp_ecc_policy_dump_all(global_status);
+
+	} else if (!strcmp(argv[0], "hw-enable")) {
+		int nconfirm = (argc == 2 && !strcmp(argv[1], "o"));
+
+		if (argc != 1 && !nconfirm)
+			return CMD_RET_USAGE;
+
+		return otp_ecc_hw_enable(nconfirm);
 
 	} else if (!strcmp(argv[0], "policy")) {
 		/* Drop the policy cmd */
 		argc--;
 		argv++;
 
-		return do_otpecc_policy(argc, argv, ecc_en);
+		return do_otpecc_policy(argc, argv, global_status);
 
 	} else {
 		return CMD_RET_USAGE;
@@ -2954,7 +3063,8 @@ U_BOOT_CMD(otp, 7, 0,  do_ast_otp,
 	   "otp <dev> info key|rbp|conf|strap|strap-ext\n"
 	   "otp <dev> patch prog <dram_addr> <otp_w_offset> <w_count>\n"
 	   "otp <dev> patch enable pre|post <otp_start_w_offset> <w_count>\n"
-	   "otp <dev> ecc status|enable|disable\n"
+	   "otp <dev> ecc status|tmp-enable|tmp-disable\n"
+	   "otp <dev> ecc hw-enable [o] (permanently burns the OTP strap ECC-enable fuse)\n"
 	   "otp <dev> ecc policy dump\n"
 	   "otp <dev> ecc policy set rom|conf|strap-ext|u-data|s-data|cptra|puf enable|disable\n"
 	   "otp <dev> test prov\n"
