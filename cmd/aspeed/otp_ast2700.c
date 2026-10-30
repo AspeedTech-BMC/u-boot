@@ -2084,7 +2084,12 @@ static int otp_prog_image(phys_addr_t addr, int nconfirm)
 
 /*
  * SHA384 over OTPROM~OTPSEC (all regions except OTPCAL and OTPPUF).
- * Computed from otp-ast2700-cptra-prov-step1.bin (ROM patch v9).
+ * Computed from otp-ast2700-cptra-prov-step1.bin (ROM patch v9), with
+ * OTPSTRAP words 0xe/0xf (see OTPSTRAP_ECCBRP_W_OFFSET/
+ * OTPSTRAP_MT_STAGE_W_OFFSET below) masked to 0 - those two carry the
+ * ECC/BRP enable fuse and manufacturing test stage records, which vary
+ * independently of the provisioned image, so they're excluded from the
+ * hash rather than pinned to one golden value.
  */
 static unsigned char otp_rompatch_v9_hash[] =
 	"\x99\xa1\x35\x09\x86\x1b\x01\xaa\x2f\x41\x5e\xf5\xd2\xdd\xac\x98"
@@ -2094,11 +2099,50 @@ static unsigned char otp_rompatch_v9_hash[] =
 #define OTP_ROM_PATCH_VERSION_ADDR	0x14c02180
 #define OTP_ROM_PATCH_V9		0x3976
 
+/*
+ * OTPSTRAP word 0xe: bit0 eccbrp_en (enable ecc/brp, except otpstrap/
+ * otprbp), bit1 eccbrp_en_BK (redundant bank copy of bit0) - see
+ * otp_ecc_hw_enable(), which burns both bits together.
+ */
+#define OTPSTRAP_ECCBRP_W_OFFSET	0xe
+#define OTPSTRAP_ECCBRP_EN_BIT		BIT(0)
+#define OTPSTRAP_ECCBRP_EN_BK_BIT	BIT(1)
+#define OTPSTRAP_ECCBRP_BURN_VALUE	(OTPSTRAP_ECCBRP_EN_BIT | OTPSTRAP_ECCBRP_EN_BK_BIT)
+
+/*
+ * OTPSTRAP word 0xf: six 2-bit manufacturing test stage records, stage 1
+ * at bits[1:0] through stage 6 at bits[11:10]; bits[15:12] reserved.
+ */
+#define OTPSTRAP_MT_STAGE_W_OFFSET	0xf
+#define OTPSTRAP_MT_STAGE_COUNT		6
+#define OTPSTRAP_MT_STAGE_FIELD(val, stage)	(((val) >> ((stage) * 2)) & 0x3)
+
+static void otp_print_strap_eccbrp_mt_stage(u16 eccbrp, u16 mt_stage)
+{
+	printf("OTPSTRAP eccbrp_en (word 0x%x): eccbrp_en=%s  eccbrp_en_BK=%s\n",
+	       OTPSTRAP_ECCBRP_W_OFFSET,
+	       (eccbrp & OTPSTRAP_ECCBRP_EN_BIT) ? "yes" : "no",
+	       (eccbrp & OTPSTRAP_ECCBRP_EN_BK_BIT) ? "yes" : "no");
+
+	printf("OTPSTRAP MT stage records (word 0x%x):\n", OTPSTRAP_MT_STAGE_W_OFFSET);
+	for (int stage = 0; stage < OTPSTRAP_MT_STAGE_COUNT; stage++)
+		printf("stage%-3d", stage + 1);
+	printf("\n");
+	for (int stage = 0; stage < OTPSTRAP_MT_STAGE_COUNT; stage++)
+		printf("--------");
+	printf("\n");
+	for (int stage = 0; stage < OTPSTRAP_MT_STAGE_COUNT; stage++)
+		printf("0x%-6x", OTPSTRAP_MT_STAGE_FIELD(mt_stage, stage));
+	printf("\n");
+}
+
 static int otp_test_provision(void)
 {
 	sha512_context ctx;
 	uint8_t digest[SHA384_SUM_LEN];
 	u16 buf[OTP_IPC_READ_MAX_WORDS];
+	u16 strap_eccbrp = 0, strap_mt_stage = 0;
+	u32 eccbrp_addr, mt_stage_addr;
 	int remaining, chunk;
 	int i, j;
 
@@ -2112,6 +2156,9 @@ static int otp_test_provision(void)
 	}
 	printf("ROM patch version v9 detected\n");
 
+	eccbrp_addr = STRAP_REGION_START_ADDR + OTPSTRAP_ECCBRP_W_OFFSET;
+	mt_stage_addr = STRAP_REGION_START_ADDR + OTPSTRAP_MT_STAGE_W_OFFSET;
+
 	/* SHA384 over OTPROM~OTPSEC (all regions except OTPCAL and OTPPUF) */
 	sha384_starts(&ctx);
 	i = ROM_REGION_START_ADDR;
@@ -2122,6 +2169,19 @@ static int otp_test_provision(void)
 			printf("OTP read failed at offset 0x%x\n", i);
 			return OTP_FAILURE;
 		}
+
+		/* Capture, then mask out before hashing - see comment above
+		 * otp_rompatch_v9_hash.
+		 */
+		if (eccbrp_addr >= (u32)i && eccbrp_addr < (u32)(i + chunk)) {
+			strap_eccbrp = buf[eccbrp_addr - i];
+			buf[eccbrp_addr - i] = 0;
+		}
+		if (mt_stage_addr >= (u32)i && mt_stage_addr < (u32)(i + chunk)) {
+			strap_mt_stage = buf[mt_stage_addr - i];
+			buf[mt_stage_addr - i] = 0;
+		}
+
 		sha384_update(&ctx, (uint8_t *)buf, chunk * sizeof(buf[0]));
 		i += chunk;
 		remaining -= chunk;
@@ -2137,6 +2197,7 @@ static int otp_test_provision(void)
 		return OTP_FAILURE;
 	}
 	printf("OTPROM~OTPSEC hash check passed\n");
+	otp_print_strap_eccbrp_mt_stage(strap_eccbrp, strap_mt_stage);
 
 	/* OTPCAL per-field validation */
 	i = 0;
@@ -2537,12 +2598,6 @@ static int otp_ecc_set_enable(int enable)
 	return misc_ioctl(otp_dev, enable ? SET_ECC_ENABLE : SET_ECC_DISABLE, NULL);
 }
 
-/* OTPSTRAP word that aspeed_otp_ecc_init() reads to latch otp_hw_gbl_ecc_effect */
-#define OTPSTRAP_ECC_EN_W_OFFSET	0xe
-#define OTPSTRAP_ECC_EN_BIT		BIT(0)
-/* bit0 is the real ECC-enable bit; bit1 is an unused dummy bit burned alongside it */
-#define OTPSTRAP_ECC_EN_BURN_VALUE	0x3
-
 /* Set once otp_ecc_hw_enable() burns the fuse this session, so "status" can
  * flag that the current in-RAM state is stale until the next power cycle.
  */
@@ -2561,13 +2616,13 @@ static int otp_ecc_hw_enable(int nconfirm)
 	u16 val;
 	int ret;
 
-	ret = otp_read_strap(OTPSTRAP_ECC_EN_W_OFFSET, &val);
+	ret = otp_read_strap(OTPSTRAP_ECCBRP_W_OFFSET, &val);
 	if (ret) {
 		printf("Failed to read OTP strap ECC enable bit\n");
 		return CMD_RET_FAILURE;
 	}
 
-	if (val & OTPSTRAP_ECC_EN_BIT) {
+	if (val & OTPSTRAP_ECCBRP_EN_BIT) {
 		printf("OTP strap ECC enable bit is already programmed\n");
 		return CMD_RET_SUCCESS;
 	}
@@ -2583,15 +2638,15 @@ static int otp_ecc_hw_enable(int nconfirm)
 		}
 	}
 
-	ret = otp_prog(STRAP_REGION_START_ADDR + OTPSTRAP_ECC_EN_W_OFFSET,
-		       OTPSTRAP_ECC_EN_BURN_VALUE);
+	ret = otp_prog(STRAP_REGION_START_ADDR + OTPSTRAP_ECCBRP_W_OFFSET,
+		       OTPSTRAP_ECCBRP_BURN_VALUE);
 	if (ret) {
 		printf("OTP cannot be programmed\n");
 		return CMD_RET_FAILURE;
 	}
 
-	ret = otp_read_strap(OTPSTRAP_ECC_EN_W_OFFSET, &val);
-	if (ret || (val & OTPSTRAP_ECC_EN_BURN_VALUE) != OTPSTRAP_ECC_EN_BURN_VALUE) {
+	ret = otp_read_strap(OTPSTRAP_ECCBRP_W_OFFSET, &val);
+	if (ret || (val & OTPSTRAP_ECCBRP_BURN_VALUE) != OTPSTRAP_ECCBRP_BURN_VALUE) {
 		printf("OTP strap ECC enable bit readback mismatch, got 0x%x\n", val);
 		return CMD_RET_FAILURE;
 	}
