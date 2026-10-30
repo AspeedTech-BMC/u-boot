@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+/dts-v1/;
+
+#include "ast2705-evb.dts"
+
+/ {
+	model = "AST2705 DCSCM";
+};
+
+/* Disable components from ast2705-evb */
+&mac1 {
+	status = "disabled";
+};
+
+&mdio1 {
+	status = "disabled";
+};
+
+&xgmac {
+	status = "disabled";
+};
+
+&ufs {
+	status = "disabled";
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&emmc_controller {
+	status = "disabled";
+};
+
+&sdc {
+	status = "disabled";
+};
+
+&sdhci {
+	status = "disabled";
+};
+
+/* Enable components for ast2705-dcscm */
+/* EEPROM and LM75 */
+&i2c9 {
+	status = "okay";
+};
+
+/* AST2705 i2c10 -> AST1080 i2c1 for PFR mailbox. */
+&i2c10 {
+	status = "okay";
+};
+
+&ltpi0_gpio {
+	status = "okay";
+};
