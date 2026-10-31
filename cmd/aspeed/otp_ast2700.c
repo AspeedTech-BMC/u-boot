@@ -663,6 +663,73 @@ static int otp_print_puf(u32 offset, int w_count)
 	return OTP_SUCCESS;
 }
 
+/*
+ * Region boundaries for otp_print_all()'s dump, in address order. All start
+ * addresses happen to be 16-byte (8-word) aligned, matching its row size, so
+ * a region change always lands exactly on a row boundary.
+ */
+static const struct {
+	const char *name;
+	u32 start;
+} otp_all_region_tbl[] = {
+	{ "ROM",      ROM_REGION_START_ADDR },
+	{ "RBP",      RBP_REGION_START_ADDR },
+	{ "CONF",     CONF_REGION_START_ADDR },
+	{ "STRAP",    STRAP_REGION_START_ADDR },
+	{ "STRAPEXT", STRAPEXT_REGION_START_ADDR },
+	{ "USER",     USER_REGION_START_ADDR },
+	{ "SECURE",   SEC_REGION_START_ADDR },
+	{ "CALIPTRA", CAL_REGION_START_ADDR },
+	{ "SW_PUF",   SW_PUF_REGION_START_ADDR },
+};
+
+/*
+ * Raw sequential dump of every OTP word except HW PUF (SOCOTP's one-way
+ * cell-unique secret, not meant to ever be printed). All other regions are
+ * laid out back-to-back from ROM_REGION_START_ADDR up to
+ * HW_PUF_REGION_START_ADDR (== SW_PUF_REGION_END_ADDR), so a single flat
+ * read covers ROM/RBP/CONF/STRAP/STRAPEXT/USER/SECURE/CALIPTRA/SW_PUF
+ * without needing per-region dispatch.
+ */
+static int otp_print_all(void)
+{
+	u16 buf[8];
+	u32 addr;
+	int remaining, chunk;
+	int rc;
+
+	addr = ROM_REGION_START_ADDR;
+	remaining = HW_PUF_REGION_START_ADDR - ROM_REGION_START_ADDR;
+
+	printf("WordAddr  ByteAddr  Data\n");
+	while (remaining > 0) {
+		chunk = remaining > ARRAY_SIZE(buf) ? ARRAY_SIZE(buf) : remaining;
+
+		for (int i = 0; i < ARRAY_SIZE(otp_all_region_tbl); i++) {
+			if (addr == otp_all_region_tbl[i].start) {
+				printf("-- %s --\n", otp_all_region_tbl[i].name);
+				break;
+			}
+		}
+
+		rc = otp_read_multi(addr, buf, chunk);
+		if (rc) {
+			printf("OTP read failed at word addr 0x%x\n", addr);
+			return OTP_FAILURE;
+		}
+
+		printf("0x%04x    0x%04x   ", addr, addr * 2);
+		for (int i = 0; i < chunk; i++)
+			printf(" %04x", buf[i]);
+		printf("\n");
+
+		addr += chunk;
+		remaining -= chunk;
+	}
+
+	return OTP_SUCCESS;
+}
+
 static int otp_prog_data(int mode, int otp_w_offset, int bit_offset,
 			 int value, int nconfirm, bool debug)
 {
@@ -2285,6 +2352,11 @@ static int do_otpread(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 	u32 offset, count;
 	int ret;
 
+	if (argc == 2 && !strcmp(argv[1], "all")) {
+		ret = otp_print_all();
+		return ret == OTP_SUCCESS ? CMD_RET_SUCCESS : CMD_RET_FAILURE;
+	}
+
 	if (argc == 4) {
 		offset = simple_strtoul(argv[2], NULL, 16);
 		count = simple_strtoul(argv[3], NULL, 16);
@@ -3111,6 +3183,7 @@ U_BOOT_CMD(otp, 7, 0,  do_ast_otp,
 	   "ASPEED One-Time-Programmable sub-system",
 	   "<dev> version\n"
 	   "otp <dev> read rom|rbp|conf|strap|strap-pro|strap-ext|strap-ext-vld|u-data|s-data|cptra|puf <otp_w_offset> <w_count>\n"
+	   "otp <dev> read all (dumps every OTP word except HW PUF)\n"
 	   "otp <dev> pb rbp|conf|u-data|s-data|cptra [o] <otp_w_offset> <bit_offset> <value>\n"
 	   "otp <dev> pb strap|strap-pro|strap-ext|strap-ext-vld [o] <bit_offset> <value>\n"
 	   "otp <dev> pb strap-ext-vld all\n"
