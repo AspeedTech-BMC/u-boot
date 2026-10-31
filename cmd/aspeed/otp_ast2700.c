@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <ansi.h>
 #include <common.h>
 #include <console.h>
 #include <bootretry.h>
@@ -50,6 +51,12 @@ enum otp_status {
 };
 
 #define OTP_VER				"1.1.0"
+
+#define ANSI_COLOR_RED			"\e[31m"
+#define ANSI_COLOR_GREEN		"\e[32m"
+#define ANSI_COLOR_YELLOW		"\e[33m"
+#define ANSI_COLOR_CYAN			"\e[36m"
+#define ANSI_COLOR_BOLD			"\e[1m"
 
 #define OTP_AST2700_A0			0
 #define OTP_AST2700_A1			1
@@ -961,7 +968,7 @@ static int otp_print_rbp_info(void)
 		}
 	}
 
-	printf("W   bit-length            Description                       Value\n");
+	printf("W     bit-length Description                               Value\n");
 	printf("__________________________________________________________________________\n");
 	for (int i = 0; i < info_cb.rbp_info_len; i++) {
 		w_offset = rbp_info[i].w_offset;
@@ -979,6 +986,10 @@ static int otp_print_rbp_info(void)
 	return OTP_SUCCESS;
 }
 
+/* Forward declarations: defined later, alongside the rest of the ECC-over-IPC plumbing */
+static int otp_ecc_get_status(int *status);
+static int otp_get_ecc_policy(u32 region, u32 *ecc_en, u32 *ecc_supported);
+
 static int otp_print_conf_info(void)
 {
 	const struct otpconf_info *conf_info = info_cb.conf_info;
@@ -988,6 +999,9 @@ static int otp_print_conf_info(void)
 	u32 bit_offset;
 	u32 otp_value;
 	int ret;
+	int global_status;
+	u32 region_ecc_en = 0, region_ecc_supported = 0;
+	bool conf_ecc_active;
 
 	for (int i = 0; i < 32; i++) {
 		ret = otp_read_conf(i, &OTPCFG[i]);
@@ -997,13 +1011,41 @@ static int otp_print_conf_info(void)
 		}
 	}
 
-	printf("W    BIT        Value       Description\n");
-	printf("__________________________________________________________________________\n");
+	/*
+	 * OTPCFG's ECC enable is a single per-region switch (not per-word);
+	 * once it's active, re-programming a word that already has any bit
+	 * set risks corrupting its ECC parity, so flag that case per word
+	 * below instead of waiting for a program attempt to fail.
+	 */
+	ret = otp_ecc_get_status(&global_status);
+	if (ret) {
+		printf("Failed to get global ECC status, ret=%d\n", ret);
+		return ret;
+	}
+
+	ret = otp_get_ecc_policy(OTP_REGION_ID_CFG, &region_ecc_en, &region_ecc_supported);
+	if (ret) {
+		printf("Failed to get OTPCFG ECC policy, ret=%d\n", ret);
+		return ret;
+	}
+
+	conf_ecc_active = region_ecc_supported &&
+			   (global_status != OTP_ECC_GLOBAL_DISABLED || region_ecc_en);
+
+	printf("OTPCFG ECC: %s%s" ANSI_COLOR_RESET "\n",
+	       conf_ecc_active ? ANSI_COLOR_CYAN : ANSI_COLOR_GREEN,
+	       conf_ecc_active ? "active" : "inactive");
+	printf("W     BIT        Value       Description                                                              Program Status\n");
+	printf("______________________________________________________________________________________________________________________________\n");
 	for (int i = 0; i < info_cb.conf_info_len; i++) {
+		char desc[80];
+		bool must_not_prog;
+
 		w_offset = conf_info[i].w_offset;
 		bit_offset = conf_info[i].bit_offset;
 		mask = BIT(conf_info[i].length) - 1;
 		otp_value = (OTPCFG[w_offset] >> bit_offset) & mask;
+		must_not_prog = conf_ecc_active && OTPCFG[w_offset] != 0;
 
 		if (otp_value != conf_info[i].value &&
 		    conf_info[i].value != OTP_REG_RESERVED &&
@@ -1018,16 +1060,23 @@ static int otp_print_conf_info(void)
 			       conf_info[i].bit_offset + conf_info[i].length - 1,
 			       conf_info[i].bit_offset);
 		}
-		printf("0x%-10x", otp_value);
+		if (otp_value)
+			printf(ANSI_COLOR_BOLD "0x%-10x" ANSI_COLOR_RESET, otp_value);
+		else
+			printf("0x%-10x", otp_value);
 
-		if (conf_info[i].value == OTP_REG_RESERVED) {
-			printf("Reserved\n");
-		} else if (conf_info[i].value == OTP_REG_VALUE) {
-			printf(conf_info[i].information, otp_value);
-			printf("\n");
-		} else {
-			printf("%s\n", conf_info[i].information);
-		}
+		if (conf_info[i].value == OTP_REG_RESERVED)
+			snprintf(desc, sizeof(desc), "Reserved");
+		else if (conf_info[i].value == OTP_REG_VALUE)
+			snprintf(desc, sizeof(desc), conf_info[i].information, otp_value);
+		else
+			snprintf(desc, sizeof(desc), "%s", conf_info[i].information);
+		printf("%-73s", desc);
+
+		if (must_not_prog)
+			printf(ANSI_COLOR_RED "DO NOT PROGRAM" ANSI_COLOR_RESET "\n");
+		else
+			printf(ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "\n");
 	}
 
 	return OTP_SUCCESS;
@@ -1044,7 +1093,7 @@ static void otp_print_strap_info(void)
 
 	otp_strap_status(strap_status);
 
-	printf("BIT(hex) Value  Remains  Protect   Description\n");
+	printf("BIT(hex) Value  Remains  Protect  Description\n");
 	printf("___________________________________________________________________________________________________\n");
 
 	for (int i = 0; i < info_cb.strap_info_len; i++) {
@@ -1062,10 +1111,23 @@ static void otp_print_strap_info(void)
 			continue;
 
 		for (int j = 0; j < length; j++) {
+			u32 bit_value = strap_status[bit_offset + j].value;
+			u32 bit_protected = strap_status[bit_offset + j].protected;
+			int bit_remain = strap_status[bit_offset + j].remain_times;
+
 			printf("0x%-7X", strap_info[i].bit_offset + j);
-			printf("0x%-5X", strap_status[bit_offset + j].value);
-			printf("%-9d", strap_status[bit_offset + j].remain_times);
-			printf("0x%-7X", strap_status[bit_offset + j].protected);
+			if (bit_value)
+				printf(ANSI_COLOR_BOLD "0x%-5X" ANSI_COLOR_RESET, bit_value);
+			else
+				printf("0x%-5X", bit_value);
+			if (bit_remain != 6)
+				printf(ANSI_COLOR_BOLD "%-9d" ANSI_COLOR_RESET, bit_remain);
+			else
+				printf("%-9d", bit_remain);
+			if (bit_protected)
+				printf(ANSI_COLOR_BOLD "0x%-7X" ANSI_COLOR_RESET, bit_protected);
+			else
+				printf("0x%-7X", bit_protected);
 			if (strap_info[i].value == OTP_REG_RESERVED) {
 				printf(" Reserved\n");
 				continue;
@@ -1131,6 +1193,10 @@ static void otp_print_strap_ext_info(void)
 	u32 length;
 	u16 data[8];
 	u16 vld[8];
+	int ret;
+	int global_status;
+	u32 region_ecc_en = 0, region_ecc_supported = 0;
+	bool strapext_ecc_active;
 
 	/* Read Flash strap */
 	for (int i = 0; i < 8; i++)
@@ -1140,10 +1206,38 @@ static void otp_print_strap_ext_info(void)
 	for (int i = 0; i < 8; i++)
 		otp_read_strap_ext_vld(i, &vld[i]);
 
-	printf("BIT(hex) Value  Valid   Description\n");
-	printf("___________________________________________________________________________________________________\n");
+	/*
+	 * OTPSTRAP_EXT's ECC enable is a single per-region switch (not
+	 * per-word); once it's active, re-programming a word that already
+	 * has any bit set risks corrupting its ECC parity, so flag that
+	 * case per word below instead of waiting for a program attempt to
+	 * fail.
+	 */
+	ret = otp_ecc_get_status(&global_status);
+	if (ret) {
+		printf("Failed to get global ECC status, ret=%d\n", ret);
+		return;
+	}
+
+	ret = otp_get_ecc_policy(OTP_REGION_ID_STRAPEXT, &region_ecc_en, &region_ecc_supported);
+	if (ret) {
+		printf("Failed to get OTPSTRAP_EXT ECC policy, ret=%d\n", ret);
+		return;
+	}
+
+	strapext_ecc_active = region_ecc_supported &&
+			       (global_status != OTP_ECC_GLOBAL_DISABLED || region_ecc_en);
+
+	printf("OTPSTRAP_EXT ECC: %s%s" ANSI_COLOR_RESET "\n",
+	       strapext_ecc_active ? ANSI_COLOR_CYAN : ANSI_COLOR_GREEN,
+	       strapext_ecc_active ? "active" : "inactive");
+	printf("BIT(hex) Value  Valid  Description                                                        Value Status    Valid Status\n");
+	printf("____________________________________________________________________________________________________________________________\n");
 
 	for (int i = 0; i < info_cb.strap_ext_info_len; i++) {
+		bool must_not_prog_value;
+		bool must_not_prog_vld;
+
 		otp_value = 0;
 		otp_vld = 0;
 		bit_offset = strap_ext_info[i].bit_offset;
@@ -1160,22 +1254,47 @@ static void otp_print_strap_ext_info(void)
 		if (otp_value != strap_ext_info[i].value)
 			continue;
 
+		/*
+		 * Value and Valid are recorded in separate OTP words, so each
+		 * carries its own independent ECC-parity programming risk.
+		 */
+		must_not_prog_value = strapext_ecc_active && data[w_offset] != 0;
+		must_not_prog_vld = strapext_ecc_active && vld[w_offset] != 0;
+
 		for (int j = 0; j < length; j++) {
+			char desc[80];
+			unsigned long bit_value = (otp_value & BIT(j)) >> j;
+			unsigned long bit_vld = (otp_vld & BIT(j)) >> j;
+
 			printf("0x%-7X", strap_ext_info[i].bit_offset + j);
-			printf("0x%-5lX", (otp_value & BIT(j)) >> j);
-			printf("0x%-5lX", (otp_vld & BIT(j)) >> j);
-
-			if (length == 1) {
-				printf(" %s\n", strap_ext_info[i].information);
-				continue;
-			}
-
-			if (j == 0)
-				printf("/%s\n", strap_ext_info[i].information);
-			else if (j == length - 1)
-				printf("\\ \"\n");
+			if (bit_value)
+				printf(ANSI_COLOR_BOLD "0x%-5lX" ANSI_COLOR_RESET, bit_value);
 			else
-				printf("| \"\n");
+				printf("0x%-5lX", bit_value);
+			if (bit_vld)
+				printf(ANSI_COLOR_BOLD "0x%-5lX" ANSI_COLOR_RESET, bit_vld);
+			else
+				printf("0x%-5lX", bit_vld);
+
+			if (length == 1)
+				snprintf(desc, sizeof(desc), " %s", strap_ext_info[i].information);
+			else if (j == 0)
+				snprintf(desc, sizeof(desc), "/%s", strap_ext_info[i].information);
+			else if (j == length - 1)
+				snprintf(desc, sizeof(desc), "\\ \"");
+			else
+				snprintf(desc, sizeof(desc), "| \"");
+			printf("%-67s", desc);
+
+			if (must_not_prog_value)
+				printf(ANSI_COLOR_RED "%-16s" ANSI_COLOR_RESET, "DO NOT PROGRAM");
+			else
+				printf(ANSI_COLOR_GREEN "%-16s" ANSI_COLOR_RESET, "OK");
+
+			if (must_not_prog_vld)
+				printf(ANSI_COLOR_RED "%s" ANSI_COLOR_RESET "\n", "DO NOT PROGRAM");
+			else
+				printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET "\n", "OK");
 		}
 	}
 }
@@ -1463,7 +1582,7 @@ static int otp_print_rbp_image(struct otp_image_layout *image_layout)
 	u32 w_offset;
 	u32 length;
 
-	printf("W   bit-length            Description                       Value\n");
+	printf("W     bit-length Description                               Value\n");
 	printf("__________________________________________________________________________\n");
 	for (int i = 0; i < info_cb.rbp_info_len; i++) {
 		w_offset = rbp_info[i].w_offset;
@@ -2908,22 +3027,28 @@ static int do_otpecc(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 	if (!strcmp(argv[0], "status")) {
 		switch (global_status) {
 		case OTP_ECC_GLOBAL_HW_ENABLED:
-			printf("OTP ECC is enabled (hardware strap, cannot be disabled this session)\n");
+			printf("OTP ECC is " ANSI_COLOR_CYAN
+			       "ENABLED (hardware strap, cannot be disabled this session)"
+			       ANSI_COLOR_RESET "\n");
 			printf("note: this forces ECC on for every region that supports it, overriding that region's own 'ecc policy' setting. Regions that don't support ECC (rbp/strap) are unaffected and stay disabled regardless.\n");
 			break;
 		case OTP_ECC_GLOBAL_SW_ENABLED:
-			printf("OTP ECC is enabled (temporarily, by software)\n");
+			printf("OTP ECC is " ANSI_COLOR_YELLOW
+			       "ENABLED (temporarily, by software)"
+			       ANSI_COLOR_RESET "\n");
 			printf("note: this forces ECC on for every region that supports it, overriding that region's own 'ecc policy' setting. Regions that don't support ECC (rbp/strap) are unaffected and stay disabled regardless.\n");
 			break;
 		default:
-			printf("OTP ECC is disabled\n");
+			printf("OTP ECC is " ANSI_COLOR_GREEN "DISABLED" ANSI_COLOR_RESET "\n");
 			printf("note: each region's ECC now follows its own 'ecc policy' setting instead\n");
 			break;
 		}
 		if (!otp_use_ipc())
 			printf("note: native backend - this reflects in-RAM state for the current u-boot session only\n");
 		if (ecc_hw_burn_pending)
-			printf("note: the OTP strap ECC-enable fuse was burned this session - it will take effect after the next power cycle\n");
+			printf(ANSI_COLOR_YELLOW
+			       "note: the OTP strap ECC-enable fuse was burned this session - it will take effect after the next power cycle"
+			       ANSI_COLOR_RESET "\n");
 
 		return CMD_RET_SUCCESS;
 
