@@ -36,6 +36,9 @@
  * ECC_GET_POLICY:  word1's lower 16 bits = region (enum otp_region_id).
  *                  Response word1 = ecc_en, word2 = ecc_supported.
  * ECC_SET_POLICY:  word1's lower 16 bits = region, word2 = ecc_en (0/1).
+ * GET_ROM_PATCH_VERSION: word1's lower 16 bits unused. Response word1 = raw
+ *                  SCU1 ROM patch version register value, undecoded (A1 vs
+ *                  A2 decode differently - the caller decodes it).
  */
 
 #define MBOX_OTP_DEVICE_NAME		"mbox-bootmcu-2"
@@ -47,6 +50,13 @@ enum otp_ipc_op {
 	OTP_IPC_OP_ECC_SET_ENABLE,
 	OTP_IPC_OP_ECC_GET_POLICY,
 	OTP_IPC_OP_ECC_SET_POLICY,
+	/*
+	 * 6 and 7 are GET_REVID/SET_READ_MODE in the Zephyr-side enum
+	 * (zephyr/include/zephyr/drivers/misc/aspeed/otp_ipc.h) - u-boot's
+	 * client has no need for either, but this op's wire value must still
+	 * match Zephyr's, hence the explicit 8 rather than falling through.
+	 */
+	OTP_IPC_OP_GET_ROM_PATCH_VERSION = 8,
 };
 
 #define OTP_IPC_SEQ_SHIFT		24
@@ -74,5 +84,6 @@ int otp_ipc_ecc_get_status(int *status);
 int otp_ipc_ecc_set_enable(int enable);
 int otp_ipc_ecc_get_policy(u32 region, u32 *ecc_en, u32 *ecc_supported);
 int otp_ipc_ecc_set_policy(u32 region, u32 ecc_en);
+int otp_ipc_get_rom_patch_version(u32 *version);
 
 #endif /* _OTP_IPC_H */

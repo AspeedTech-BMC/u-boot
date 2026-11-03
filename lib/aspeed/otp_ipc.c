@@ -162,3 +162,17 @@ int otp_ipc_ecc_set_policy(u32 region, u32 ecc_en)
 
 	return otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
 }
+
+int otp_ipc_get_rom_patch_version(u32 *version)
+{
+	u32 req[8] = {0, OTP_IPC_PACK_OP_COUNT(OTP_IPC_OP_GET_ROM_PATCH_VERSION, 0),
+		      0, 0, 0, 0, 0, 0};
+	u32 resp[8] = {0};
+	int status;
+
+	status = otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
+	if (status == 0)
+		*version = resp[1];
+
+	return status;
+}

@@ -2411,6 +2411,12 @@ static unsigned char otp_rompatch_v9_hash[] =
 #define OTP_ROM_PATCH_VERSION_ADDR	0x14c02180
 #define OTP_ROM_PATCH_V9		0x3976
 
+/* A1's ROM patch version register is one of these exact values, unlike A2's ASCII-ish encoding */
+#define A1_OTP_ROM_PATCH_NONE		0x0
+#define A1_OTP_ROM_PATCH_V1		0x3
+#define A1_OTP_ROM_PATCH_V2		0x3276
+#define A1_OTP_ROM_PATCH_V3		0x3376
+
 /*
  * OTPSTRAP word 0xe: bit0 eccbrp_en (enable ecc/brp, except otpstrap/
  * otprbp), bit1 eccbrp_en_BK (redundant bank copy of bit0) - see
@@ -2446,6 +2452,62 @@ static void otp_print_strap_eccbrp_mt_stage(u16 eccbrp, u16 mt_stage)
 	for (int stage = 0; stage < OTPSTRAP_MT_STAGE_COUNT; stage++)
 		printf("0x%-6x", OTPSTRAP_MT_STAGE_FIELD(mt_stage, stage));
 	printf("\n");
+}
+
+/*
+ * Raw, undecoded SCU1 ROM patch version register: native readl() or, when
+ * OTP/SCU ownership is locked to BootMCU, the IPC equivalent - decoding
+ * differs between A1 and A2 (see otp_print_rom_patch_version()), so this
+ * just hands back whichever backend answered.
+ */
+static int otp_get_rom_patch_version(u32 *version)
+{
+	if (otp_use_ipc())
+		return otp_ipc_get_rom_patch_version(version);
+
+	*version = readl(OTP_ROM_PATCH_VERSION_ADDR);
+
+	return 0;
+}
+
+static void otp_print_rom_patch_version(void)
+{
+	u32 ver;
+	const char *str;
+
+	if (otp_get_rom_patch_version(&ver)) {
+		otp_err("Failed to read ROM patch version");
+		return;
+	}
+
+	if (info_cb.version == OTP_AST2700_A2) {
+		if (ver == 0x0)
+			printf("ROM patch: None\n");
+		else if ((ver & 0xff) == 'v')
+			printf("ROM patch: %.4s\n", (char *)&ver);
+		else
+			printf("ROM patch: Unknown (0x%x)\n", ver);
+		return;
+	}
+
+	switch (ver) {
+	case A1_OTP_ROM_PATCH_NONE:
+		str = "None";
+		break;
+	case A1_OTP_ROM_PATCH_V1:
+		str = "v1";
+		break;
+	case A1_OTP_ROM_PATCH_V2:
+		str = "v2";
+		break;
+	case A1_OTP_ROM_PATCH_V3:
+		str = "v3";
+		break;
+	default:
+		str = "Unknown";
+		break;
+	}
+	printf("ROM patch: %s\n", str);
 }
 
 static int otp_test_provision(void)
@@ -2588,6 +2650,8 @@ static int do_otpinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 		otp_print_strap_ext_info();
 	} else if (!strcmp(argv[1], "key")) {
 		otp_print_key_info();
+	} else if (!strcmp(argv[1], "rompatch")) {
+		otp_print_rom_patch_version();
 	} else {
 		otp_err("otp info: unknown region '%s'", argv[1]);
 		return CMD_RET_USAGE;
@@ -3813,7 +3877,7 @@ U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "otp <dev> prog: \"o\" skips the \"type YES\" confirm; \"f\" forces programming anyway\n"
 	   "    when a region's existing data conflicts with the image while that region's ECC is\n"
 	   "    active (otherwise refused, since the second write would corrupt its ECC parity)\n"
-	   "otp <dev> info key|rbp|conf|strap|strap-ext\n"
+	   "otp <dev> info key|rbp|conf|strap|strap-ext|rompatch\n"
 	   "otp <dev> patch prog <dram_addr> <otp_w_offset> <w_count>\n"
 	   "otp <dev> patch enable pre|post <otp_start_w_offset> <w_count>\n"
 	   "otp <dev> ecc status|tmp-enable|tmp-disable\n"
