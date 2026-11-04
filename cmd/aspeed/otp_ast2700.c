@@ -2468,13 +2468,16 @@ static unsigned char otp_rompatch_v9_hash[] =
 #define OTPSTRAP_MT_STAGE_COUNT		6
 #define OTPSTRAP_MT_STAGE_FIELD(val, stage)	(((val) >> ((stage) * 2)) & 0x3)
 
-static void otp_print_strap_eccbrp_mt_stage(u16 eccbrp, u16 mt_stage)
+static void otp_print_strap_eccbrp(u16 eccbrp)
 {
 	printf("OTPSTRAP eccbrp_en (word 0x%x): eccbrp_en=%s  eccbrp_en_BK=%s\n",
 	       OTPSTRAP_ECCBRP_W_OFFSET,
 	       (eccbrp & OTPSTRAP_ECCBRP_EN_BIT) ? "yes" : "no",
 	       (eccbrp & OTPSTRAP_ECCBRP_EN_BK_BIT) ? "yes" : "no");
+}
 
+static void otp_print_strap_mt_stage(u16 mt_stage)
+{
 	printf("OTPSTRAP MT stage records (word 0x%x):\n", OTPSTRAP_MT_STAGE_W_OFFSET);
 	for (int stage = 0; stage < OTPSTRAP_MT_STAGE_COUNT; stage++)
 		printf("stage%-3d", stage + 1);
@@ -2543,6 +2546,23 @@ static void otp_print_rom_patch_version(void)
 	printf("ROM patch: %s\n", str);
 }
 
+/* Reads OTPSTRAP's MT stage word directly, for "otp info mt-stage" */
+static int otp_print_mt_stage_info(void)
+{
+	u16 mt_stage;
+	int ret;
+
+	ret = otp_read_strap(OTPSTRAP_MT_STAGE_W_OFFSET, &mt_stage);
+	if (ret) {
+		otp_err("Failed to read OTPSTRAP MT stage word");
+		return OTP_FAILURE;
+	}
+
+	otp_print_strap_mt_stage(mt_stage);
+
+	return OTP_SUCCESS;
+}
+
 static int otp_test_provision(void)
 {
 	sha512_context ctx;
@@ -2604,7 +2624,8 @@ static int otp_test_provision(void)
 		return OTP_FAILURE;
 	}
 	printf("OTPROM~OTPSEC hash check passed\n");
-	otp_print_strap_eccbrp_mt_stage(strap_eccbrp, strap_mt_stage);
+	otp_print_strap_eccbrp(strap_eccbrp);
+	otp_print_strap_mt_stage(strap_mt_stage);
 
 	/* OTPCAL per-field validation */
 	i = 0;
@@ -2685,6 +2706,8 @@ static int do_otpinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 		otp_print_key_info();
 	} else if (!strcmp(argv[1], "rompatch")) {
 		otp_print_rom_patch_version();
+	} else if (!strcmp(argv[1], "mt-stage")) {
+		otp_print_mt_stage_info();
 	} else {
 		otp_err("otp info: unknown region '%s'", argv[1]);
 		return CMD_RET_USAGE;
@@ -3916,7 +3939,7 @@ U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "otp <dev> prog: \"o\" skips the \"type YES\" confirm; \"f\" forces programming anyway\n"
 	   "    when a region's existing data conflicts with the image while that region's ECC is\n"
 	   "    active (otherwise refused, since the second write would corrupt its ECC parity)\n"
-	   "otp <dev> info key|rbp|conf|strap|strap-ext|rompatch\n"
+	   "otp <dev> info key|rbp|conf|strap|strap-ext|rompatch|mt-stage\n"
 	   "otp <dev> patch prog <dram_addr> <otp_w_offset> <w_count>\n"
 	   "otp <dev> patch enable pre|post <otp_start_w_offset> <w_count>\n"
 	   "otp <dev> ecc status|tmp-enable|tmp-disable\n"
