@@ -430,6 +430,9 @@ static int otp_print_rom(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -460,6 +463,9 @@ static int otp_print_rbp(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -485,6 +491,9 @@ static int otp_print_conf(u32 offset, int w_count)
 	int range = OTP_CONF_REGION_SIZE;
 	u16 ret[1];
 	int rc;
+
+	if (w_count < 0)
+		w_count = range - offset;
 
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
@@ -512,6 +521,9 @@ static int otp_print_strap(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -537,6 +549,9 @@ static int otp_print_strap_pro(u32 offset, int w_count)
 	int range = 2;	/* 32-bit / 16 (per word) */
 	u16 ret[1];
 	int rc;
+
+	if (w_count < 0)
+		w_count = range - offset;
 
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
@@ -564,6 +579,9 @@ static int otp_print_strap_ext(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -590,6 +608,9 @@ static int otp_print_strap_ext_valid(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -615,6 +636,9 @@ static int otp_print_user_data(u32 offset, int w_count)
 	int range = OTP_USER_REGION_SIZE;
 	u16 ret[1];
 	int rc;
+
+	if (w_count < 0)
+		w_count = range - offset;
 
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
@@ -646,6 +670,9 @@ static int otp_print_sec_data(u32 offset, int w_count)
 	u16 ret;
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -676,6 +703,9 @@ static int otp_print_cptra(u32 offset, int w_count)
 	u16 ret[1];
 	int rc;
 
+	if (w_count < 0)
+		w_count = range - offset;
+
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
 		return OTP_USAGE;
@@ -705,6 +735,9 @@ static int otp_print_puf(u32 offset, int w_count)
 	int range = OTP_PUF_REGION_SIZE;
 	u16 ret[1];
 	int rc;
+
+	if (w_count < 0)
+		w_count = range - offset;
 
 	if (offset + w_count > range) {
 		otp_err("offset+count 0x%x exceeds region size 0x%x", offset + w_count, range);
@@ -2662,7 +2695,8 @@ static int do_otpinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 
 static int do_otpread(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
-	u32 offset, count;
+	u32 offset;
+	int count;
 	int ret;
 
 	if (argc == 2 && !strcmp(argv[1], "all")) {
@@ -2676,6 +2710,10 @@ static int do_otpread(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 	} else if (argc == 3) {
 		offset = simple_strtoul(argv[2], NULL, 16);
 		count = 1;
+	} else if (argc == 2) {
+		/* region name only: dump the whole region from offset 0 */
+		offset = 0;
+		count = -1;
 	} else {
 		otp_err("otp read: bad argc %d", argc);
 		return CMD_RET_USAGE;
@@ -3863,7 +3901,8 @@ static int do_ast_otp(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "ASPEED One-Time-Programmable sub-system",
 	   "<dev> version\n"
-	   "otp <dev> read rom|rbp|conf|strap|strap-pro|strap-ext|strap-ext-vld|u-data|s-data|cptra|puf <otp_w_offset> <w_count>\n"
+	   "otp <dev> read rom|rbp|conf|strap|strap-pro|strap-ext|strap-ext-vld|u-data|s-data|cptra|puf [<otp_w_offset> <w_count>]\n"
+	   "otp <dev> read <region>: omitting <otp_w_offset>/<w_count> dumps that whole region\n"
 	   "otp <dev> read all (dumps every OTP word except HW PUF)\n"
 	   "otp <dev> pb rbp|conf|u-data|s-data|cptra [o] [f] <otp_w_offset> <bit_offset> <value>\n"
 	   "otp <dev> pb strap|strap-pro [o] <bit_offset> <value>\n"
