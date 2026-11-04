@@ -81,6 +81,8 @@
 #define MPLLA_DIV16P5_CLK_EN					BIT(10)
 #define DW_VR_XS_PMA_MP_16G_MPLLA_CTRL3			0x8077
 #define MPLLA_BANDWIDTH(x)					(x)
+#define DW_MP_12G_16G_25G_MISC_CTRL0			0x8090
+#define PLL_CTRL						BIT(15)
 #define DW_VR_XS_PMA_MP_12G_16G_25G_VCO_CAL_LD0		0x8092
 #define VCO_LD_VAL_0_MASK					GENMASK(12, 0)
 #define VCO_LD_VAL_0(x) \
@@ -229,6 +231,12 @@ static int xpcs_config_10gbaser(struct phy_device *phydev)
 		return ret;
 	}
 
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_MP_12G_16G_25G_MISC_CTRL0,
+			     PLL_CTRL, PLL_CTRL);
+	if (ret < 0)
+		return ret;
+
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
 			     DW_VR_XS_PCS_DEBUG_CTRL,
 			     SUPRESS_LOS_DET | RX_DT_EN_CTL,
@@ -355,6 +363,12 @@ static int xpcs_config_5gbaser(struct phy_device *phydev)
 		return ret;
 	}
 
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_MP_12G_16G_25G_MISC_CTRL0,
+			     PLL_CTRL, PLL_CTRL);
+	if (ret < 0)
+		return ret;
+
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
 			     DW_VR_XS_PCS_DEBUG_CTRL,
 			     SUPRESS_LOS_DET | RX_DT_EN_CTL,
@@ -465,6 +479,12 @@ static int xpcs_config_usxgmii(struct phy_device *phydev)
 		pr_err("VR Reset failed\n");
 		return ret;
 	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_MP_12G_16G_25G_MISC_CTRL0,
+			     PLL_CTRL, PLL_CTRL);
+	if (ret < 0)
+		return ret;
 
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
 			     DW_VR_XS_PCS_DEBUG_CTRL,
@@ -674,6 +694,12 @@ static int xpcs_config_sgmii(struct phy_device *phydev)
 		pr_err("VR Reset failed\n");
 		return ret;
 	}
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+			     DW_MP_12G_16G_25G_MISC_CTRL0,
+			     PLL_CTRL, PLL_CTRL);
+	if (ret < 0)
+		return ret;
 
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
 			     DW_VR_XS_PCS_DEBUG_CTRL,
