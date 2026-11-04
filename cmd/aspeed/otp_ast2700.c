@@ -2563,6 +2563,43 @@ static int otp_print_mt_stage_info(void)
 	return OTP_SUCCESS;
 }
 
+/*
+ * OTPCAL word 0x12: first two words of the 48-byte vendor key hash. Its
+ * value identifies which HSM solution signed the provisioning image.
+ */
+#define CAL_VENDOR_KEY_HASH_OFFSET	0x12
+#define CAL_VENDOR_KEY_HASH_DUAL_HSM	0xddd4b37b
+#define CAL_VENDOR_KEY_HASH_SINGLE_HSM	0x428d18b0
+
+static int otp_print_hsm_info(void)
+{
+	u16 hash[2];
+	u32 hash_prefix;
+	const char *hsm_solution;
+	int ret;
+
+	ret = otp_read_multi(CAL_REGION_START_ADDR + CAL_VENDOR_KEY_HASH_OFFSET, hash,
+			     ARRAY_SIZE(hash));
+	if (ret) {
+		otp_err("Failed to read vendor key hash");
+		return OTP_FAILURE;
+	}
+
+	hash_prefix = ((u32)be16_to_cpu(hash[0]) << 16) | be16_to_cpu(hash[1]);
+
+	if (hash_prefix == CAL_VENDOR_KEY_HASH_DUAL_HSM)
+		hsm_solution = "Dual-HSM";
+	else if (hash_prefix == CAL_VENDOR_KEY_HASH_SINGLE_HSM)
+		hsm_solution = "Single-HSM";
+	else
+		hsm_solution = "unknown";
+
+	printf("Vendor key hash: %04x%04x... (%s)\n",
+	       be16_to_cpu(hash[0]), be16_to_cpu(hash[1]), hsm_solution);
+
+	return OTP_SUCCESS;
+}
+
 static int otp_test_provision(void)
 {
 	sha512_context ctx;
@@ -2708,6 +2745,8 @@ static int do_otpinfo(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 		otp_print_rom_patch_version();
 	} else if (!strcmp(argv[1], "mt-stage")) {
 		otp_print_mt_stage_info();
+	} else if (!strcmp(argv[1], "hsm")) {
+		otp_print_hsm_info();
 	} else {
 		otp_err("otp info: unknown region '%s'", argv[1]);
 		return CMD_RET_USAGE;
@@ -3939,7 +3978,7 @@ U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "otp <dev> prog: \"o\" skips the \"type YES\" confirm; \"f\" forces programming anyway\n"
 	   "    when a region's existing data conflicts with the image while that region's ECC is\n"
 	   "    active (otherwise refused, since the second write would corrupt its ECC parity)\n"
-	   "otp <dev> info key|rbp|conf|strap|strap-ext|rompatch|mt-stage\n"
+	   "otp <dev> info key|rbp|conf|strap|strap-ext|rompatch|mt-stage|hsm\n"
 	   "otp <dev> patch prog <dram_addr> <otp_w_offset> <w_count>\n"
 	   "otp <dev> patch enable pre|post <otp_start_w_offset> <w_count>\n"
 	   "otp <dev> ecc status|tmp-enable|tmp-disable\n"
