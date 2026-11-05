@@ -39,6 +39,11 @@
  * GET_ROM_PATCH_VERSION: word1's lower 16 bits unused. Response word1 = raw
  *                  SCU1 ROM patch version register value, undecoded (A1 vs
  *                  A2 decode differently - the caller decodes it).
+ * READ_ECC_CODE:   word0 = addr, word1's lower 16 bits unused. Response
+ *                  word1 = raw 16-bit data, word2 = OTP_DBG01[5:0] (ECC
+ *                  code) captured by the same read. ECC decode is forced
+ *                  off for this read regardless of addr's region's own ECC
+ *                  policy.
  */
 
 #define MBOX_OTP_DEVICE_NAME		"mbox-bootmcu-2"
@@ -57,6 +62,7 @@ enum otp_ipc_op {
 	 * match Zephyr's, hence the explicit 8 rather than falling through.
 	 */
 	OTP_IPC_OP_GET_ROM_PATCH_VERSION = 8,
+	OTP_IPC_OP_READ_ECC_CODE,
 };
 
 #define OTP_IPC_SEQ_SHIFT		24
@@ -85,5 +91,6 @@ int otp_ipc_ecc_set_enable(int enable);
 int otp_ipc_ecc_get_policy(u32 region, u32 *ecc_en, u32 *ecc_supported);
 int otp_ipc_ecc_set_policy(u32 region, u32 ecc_en);
 int otp_ipc_get_rom_patch_version(u32 *version);
+int otp_ipc_read_ecc_code(u32 addr, u32 *data, u32 *ecc_code);
 
 #endif /* _OTP_IPC_H */

@@ -176,3 +176,19 @@ int otp_ipc_get_rom_patch_version(u32 *version)
 
 	return status;
 }
+
+int otp_ipc_read_ecc_code(u32 addr, u32 *data, u32 *ecc_code)
+{
+	u32 req[8] = {addr, OTP_IPC_PACK_OP_COUNT(OTP_IPC_OP_READ_ECC_CODE, 0),
+		      0, 0, 0, 0, 0, 0};
+	u32 resp[8] = {0};
+	int status;
+
+	status = otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
+	if (status == 0) {
+		*data = resp[1];
+		*ecc_code = resp[2];
+	}
+
+	return status;
+}
