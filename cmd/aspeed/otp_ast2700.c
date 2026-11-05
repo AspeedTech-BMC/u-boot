@@ -3873,26 +3873,53 @@ static void otp_print_hash_line(const u8 *hash, int len)
 	printf("\n");
 }
 
+/* Raw (non-ECC) read of a word's data and hardware ECC code, dispatching to
+ * GET_OTP_ECC_CODE natively or its IPC/BootMCU equivalent.
+ */
+static int otp_read_ecc_code(u32 addr, u16 *data, u32 *ecc_code)
+{
+	struct otp_read_ecc req;
+	u32 raw_data;
+	int ret;
+
+	if (otp_use_ipc()) {
+		ret = otp_ipc_read_ecc_code(addr, &raw_data, ecc_code);
+		if (!ret)
+			*data = (u16)raw_data;
+		return ret;
+	}
+
+	req.offset = addr;
+	ret = misc_ioctl(otp_dev, GET_OTP_ECC_CODE, &req);
+	if (!ret) {
+		*data = (u16)req.data;
+		*ecc_code = req.ecc_code;
+	}
+
+	return ret;
+}
+
 /*
- * Reads cptra keyhash words raw (non-ECC), via GET_OTP_ECC_CODE. A
- * non-zero ECC code on the first non-zero word means cptra was originally
- * programmed with ECC parity and should be skipped during reprog.
+ * Reads cptra keyhash words raw (non-ECC). A non-zero ECC code on the
+ * first non-zero word means cptra was originally programmed with ECC
+ * parity and should be skipped during reprog.
  */
 static bool otp_cptra_has_ecc(void)
 {
-	struct otp_read_ecc req;
+	u32 addr, ecc_code;
+	u16 data;
 	int i;
 
 	for (i = 0; i < CAL_VENDOR_KEY_HASH_WORDS; i++) {
-		req.offset = CAL_REGION_START_ADDR + CAL_VENDOR_KEY_HASH_OFFSET + i;
-		req.data = 0;
-		req.ecc_code = 0;
-		if (misc_ioctl(otp_dev, GET_OTP_ECC_CODE, &req))
+		addr = CAL_REGION_START_ADDR + CAL_VENDOR_KEY_HASH_OFFSET + i;
+		data = 0;
+		ecc_code = 0;
+		if (otp_read_ecc_code(addr, &data, &ecc_code))
 			break;
-		if (req.data) {
+		if (data) {
 			printf("OTP reprog_ecc: cptra[0x%x] data=0x%04x ecc_code=0x%02x\n",
-			       req.offset, req.data, req.ecc_code);
-			return req.ecc_code != 0;
+			       addr, data, ecc_code);
+			return ecc_code != 0;
 		}
 	}
 
@@ -3926,11 +3953,6 @@ static int do_otpreprog_ecc(struct cmd_tbl *cmdtp, int flag,
 	u16 **bufs;
 	u8 pre_hash[ARRAY_SIZE(otp_ecc_prog_regions)][SHA384_SUM_LEN];
 	u8 post_hash[SHA384_SUM_LEN];
-
-	if (otp_use_ipc()) {
-		otp_err("otp reprog_ecc: requires native OTP controller access, not supported over IPC/BootMCU");
-		return CMD_RET_FAILURE;
-	}
 
 	if (otp_ecc_get_status(&global_status))
 		return CMD_RET_FAILURE;
@@ -4276,8 +4298,8 @@ U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "otp <dev> ecc policy dump\n"
 	   "otp <dev> ecc policy set rom|conf|strap-ext|u-data|s-data|cptra|puf enable|disable\n"
 	   "otp <dev> test prov\n"
-	   "otp <dev> reprog_ecc [o] [--ref <addr>] (native backend only; re-programs ECC-capable\n"
-	   "    regions' data with parity, does not touch the global-ECC fuse - follow with\n"
-	   "    'otp <dev> ecc hw-enable' to permanently latch global ECC on)\n"
+	   "otp <dev> reprog_ecc [o] [--ref <addr>] (re-programs ECC-capable regions' data with\n"
+	   "    parity, does not touch the global-ECC fuse - follow with 'otp <dev> ecc hw-enable'\n"
+	   "    to permanently latch global ECC on)\n"
 	   "otp <dev> reprog_ecc: \"o\" skips the \"type YES\" confirm\n"
 	  );
