@@ -16,6 +16,7 @@
 #include <asm/arch/platform.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
+#include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <u-boot/sha256.h>
 #include <u-boot/sha512.h>
@@ -427,11 +428,17 @@ static void otp_ecc_cfg(struct udevice *dev, bool ecc_en, bool auto_cfg)
 static void otp_set_dap_vrr_default(struct udevice *dev)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
-	u32 val;
+	u32 val, new_val;
 
 	val = readl(otp->base + OTP_DAP_RQ);
-	val = (val & ~OTP_DAP_VRR_MASK) | FIELD_PREP(OTP_DAP_VRR_MASK, OTP_DAP_VRR_DEFAULT);
-	writel(val, otp->base + OTP_DAP_RQ);
+	new_val = (val & ~OTP_DAP_VRR_MASK) | FIELD_PREP(OTP_DAP_VRR_MASK, OTP_DAP_VRR_DEFAULT);
+	if (new_val == val)
+		return;
+
+	writel(new_val, otp->base + OTP_DAP_RQ);
+
+	/* Wait for VRR to settle before issuing the next OTP command */
+	udelay(7);
 }
 #else
 static inline void otp_set_dap_vrr_default(struct udevice *dev)
