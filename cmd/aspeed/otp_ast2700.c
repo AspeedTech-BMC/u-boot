@@ -16,6 +16,7 @@
 #include <mapmem.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
+#include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <u-boot/sha256.h>
 #include <u-boot/sha512.h>
@@ -2564,10 +2565,13 @@ static int otp_print_mt_stage_info(void)
 }
 
 /*
- * OTPCAL word 0x12: first two words of the 48-byte vendor key hash. Its
- * value identifies which HSM solution signed the provisioning image.
+ * OTPCAL word 0x12: start of the 48-byte (24-word) vendor key hash. Its
+ * first two words identify which HSM solution signed the provisioning
+ * image; otp_cptra_has_ecc() below scans the full 24 words to find the
+ * first non-zero one.
  */
 #define CAL_VENDOR_KEY_HASH_OFFSET	0x12
+#define CAL_VENDOR_KEY_HASH_WORDS	24
 #define CAL_VENDOR_KEY_HASH_DUAL_HSM	0xddd4b37b
 #define CAL_VENDOR_KEY_HASH_SINGLE_HSM	0x428d18b0
 
@@ -3818,6 +3822,291 @@ static int do_otptest(struct cmd_tbl *cmdtp, int flag, int argc, char *const arg
 	return CMD_RET_SUCCESS;
 }
 
+/* -----------------------------------------------------------------------
+ * reprog_ecc: re-program OTP ECC bits for all ECC-capable regions.
+ *
+ * Usage:
+ *   otp <dev> reprog_ecc
+ *   otp <dev> reprog_ecc --ref <addr>
+ *
+ * Without --ref: reads each word raw from OTP and re-programs it with ECC.
+ * With --ref:    uses the golden binary at <addr> (full OTP image, u16
+ *                array indexed by word address) as the authoritative value;
+ *                errors when a word differs from the raw OTP.
+ *
+ * Whether the cptra region needs ECC reprogramming is detected at runtime:
+ * with a raw (non-ECC) read, OTP_DBG01[5:0] (ECC code) is read after probing
+ * a keyhash word (OTPCAL12~29). A non-zero code means the region was
+ * originally programmed with ECC and is skipped; zero means it was not and
+ * is included so ECC can be added.
+ *
+ * This command only prepares region *data* for ECC; it never touches the
+ * OTPSTRAP global-ECC fuse itself - run 'otp <dev> ecc hw-enable'
+ * separately afterward to permanently latch global ECC on.
+ *
+ * Each region is SHA384-hashed from its raw (non-ECC) read before any word
+ * is programmed. After all 3 write passes, the region is read back with
+ * ECC active and re-hashed; a mismatch means programming changed the
+ * region's visible data (as opposed to only adding parity) and is reported
+ * as an error, even though the OTP write itself can't be undone.
+ * -----------------------------------------------------------------------
+ */
+
+#define OTP_REPROG_ECC_PASSES		3
+#define OTP_REPROG_ECC_WAIT_MS		3000
+
+/* USR2/3 (word addr 0x6c0~0x1000) excluded — no ECC reprogram needed */
+#define USER_REGION_ECC_END_ADDR	0x6c0
+
+/*
+ * STRAP reprogram range: skip protection words at STRAP_REGION_START_ADDR+0/+1
+ * and stop before OTPSTRAP's eccbrp_en/MT-stage words (0xe/0xf), which are
+ * handled separately by 'otp ecc hw-enable'.
+ */
+#define STRAP_REPROG_START_ADDR		(STRAP_REGION_START_ADDR + 2)
+#define STRAP_REPROG_END_ADDR		(STRAP_REPROG_START_ADDR + OTP_STRAP_REGION_SIZE)
+
+static void otp_print_hash_line(const u8 *hash, int len)
+{
+	for (int i = 0; i < len; i++)
+		printf("%02x", hash[i]);
+	printf("\n");
+}
+
+/*
+ * Reads cptra keyhash words raw (non-ECC), via GET_OTP_ECC_CODE. A
+ * non-zero ECC code on the first non-zero word means cptra was originally
+ * programmed with ECC parity and should be skipped during reprog.
+ */
+static bool otp_cptra_has_ecc(void)
+{
+	struct otp_read_ecc req;
+	int i;
+
+	for (i = 0; i < CAL_VENDOR_KEY_HASH_WORDS; i++) {
+		req.offset = CAL_REGION_START_ADDR + CAL_VENDOR_KEY_HASH_OFFSET + i;
+		req.data = 0;
+		req.ecc_code = 0;
+		if (misc_ioctl(otp_dev, GET_OTP_ECC_CODE, &req))
+			break;
+		if (req.data) {
+			printf("OTP reprog_ecc: cptra[0x%x] data=0x%04x ecc_code=0x%02x\n",
+			       req.offset, req.data, req.ecc_code);
+			return req.ecc_code != 0;
+		}
+	}
+
+	return false;
+}
+
+static const struct {
+	u32 start;
+	u32 end;
+	const char *name;
+	bool ecc;		/* true: write with ECC enabled; false: plain prog */
+	bool skip_if_ecc;	/* skip this region when cptra was programmed with ECC */
+} otp_ecc_prog_regions[] = {
+	{ CONF_REGION_START_ADDR,     CONF_REGION_END_ADDR,     "otpcfg",   true,  false },
+	{ STRAP_REPROG_START_ADDR,    STRAP_REPROG_END_ADDR,    "otpstrap", false, false },
+	{ STRAPEXT_REGION_START_ADDR, STRAPEXT_REGION_END_ADDR, "strapext", true,  false },
+	{ USER_REGION_START_ADDR,     USER_REGION_ECC_END_ADDR, "u-data",   true,  false },
+	{ SEC_REGION_START_ADDR,      SEC_REGION_END_ADDR,      "s-data",   true,  false },
+	{ CAL_REGION_START_ADDR,      CAL_REGION_END_ADDR,      "cptra",    true,  true  },
+};
+
+static int do_otpreprog_ecc(struct cmd_tbl *cmdtp, int flag,
+			    int argc, char *const argv[])
+{
+	const u16 *golden = NULL;
+	bool cptra_has_ecc;
+	int global_status;
+	int r, pass, ret = 0;
+	int nconfirm = 0;
+	int next = 1;
+	u16 **bufs;
+	u8 pre_hash[ARRAY_SIZE(otp_ecc_prog_regions)][SHA384_SUM_LEN];
+	u8 post_hash[SHA384_SUM_LEN];
+
+	if (otp_use_ipc()) {
+		otp_err("otp reprog_ecc: requires native OTP controller access, not supported over IPC/BootMCU");
+		return CMD_RET_FAILURE;
+	}
+
+	if (otp_ecc_get_status(&global_status))
+		return CMD_RET_FAILURE;
+
+	if (global_status == OTP_ECC_GLOBAL_HW_ENABLED) {
+		printf("OTP: global ECC already hardware-enabled, reprog_ecc not needed\n");
+		return CMD_RET_SUCCESS;
+	}
+
+	if (argc > next && !strcmp(argv[next], "o")) {
+		nconfirm = 1;
+		next++;
+	}
+
+	if (argc == next + 2 && !strcmp(argv[next], "--ref")) {
+		golden = (const u16 *)simple_strtoul(argv[next + 1], NULL, 16);
+		printf("OTP reprog_ecc: golden binary at 0x%p\n", golden);
+	} else if (argc != next) {
+		return CMD_RET_USAGE;
+	}
+
+	cptra_has_ecc = otp_cptra_has_ecc();
+	if (cptra_has_ecc)
+		printf("OTP: cptra region was programmed with ECC, skipping\n");
+	else
+		printf("OTP: cptra region has no ECC, including in reprog\n");
+
+	printf("WARNING: this reprograms OTP words with ECC parity. OTP writes are permanent and cannot be undone.\n");
+	if (!nconfirm) {
+		printf("type \"YES\" (no quotes) to continue:\n");
+		if (!confirm_yesno()) {
+			printf("Aborting\n");
+			return CMD_RET_FAILURE;
+		}
+	}
+
+	bufs = calloc(ARRAY_SIZE(otp_ecc_prog_regions), sizeof(*bufs));
+	if (!bufs)
+		return CMD_RET_FAILURE;
+
+	/* Ensure raw reads: disable ECC for this session */
+	otp_ecc_set_enable(0);
+
+	/* Phase 1: read each region raw (and compare against golden) */
+	for (r = 0; r < ARRAY_SIZE(otp_ecc_prog_regions); r++) {
+		u32 size, addr;
+
+		if (otp_ecc_prog_regions[r].skip_if_ecc && cptra_has_ecc)
+			continue;
+
+		size = otp_ecc_prog_regions[r].end - otp_ecc_prog_regions[r].start;
+		bufs[r] = malloc(size * sizeof(u16));
+		if (!bufs[r]) {
+			printf("OTP reprog_ecc: malloc failed for %s\n",
+			       otp_ecc_prog_regions[r].name);
+			ret = CMD_RET_FAILURE;
+			goto cleanup;
+		}
+
+		for (addr = otp_ecc_prog_regions[r].start;
+		     addr < otp_ecc_prog_regions[r].end; addr++) {
+			u32 idx = addr - otp_ecc_prog_regions[r].start;
+			u16 raw;
+
+			if (otp_read(addr, &raw)) {
+				printf("OTP reprog_ecc: read failed at 0x%x\n", addr);
+				ret = CMD_RET_FAILURE;
+				goto cleanup;
+			}
+
+			if (golden) {
+				u16 gval = golden[addr];
+
+				if (raw == gval) {
+					bufs[r][idx] = gval;
+				} else if (raw && !gval) {
+					printf("OTP WARN: addr 0x%x raw=0x%04x not in golden, using raw\n",
+					       addr, raw);
+					bufs[r][idx] = raw;
+				} else {
+					printf("OTP ERR: addr 0x%x raw=0x%04x != golden=0x%04x, aborting\n",
+					       addr, raw, gval);
+					ret = CMD_RET_FAILURE;
+					goto cleanup;
+				}
+			} else {
+				bufs[r][idx] = raw;
+			}
+		}
+
+		do_hash(bufs[r], size * sizeof(u16), "sha384", pre_hash[r]);
+		printf("OTP reprog_ecc: %-8s pre-hash : ", otp_ecc_prog_regions[r].name);
+		otp_print_hash_line(pre_hash[r], SHA384_SUM_LEN);
+	}
+
+	/* Phase 2: 3 write passes; ECC is toggled per-region */
+	for (pass = 0; pass < OTP_REPROG_ECC_PASSES; pass++) {
+		if (pass > 0) {
+			printf("OTP reprog_ecc: waiting %ds...\n", OTP_REPROG_ECC_WAIT_MS / 1000);
+			mdelay(OTP_REPROG_ECC_WAIT_MS);
+		}
+
+		printf("OTP reprog_ecc: pass %d/%d\n", pass + 1, OTP_REPROG_ECC_PASSES);
+
+		for (r = 0; r < ARRAY_SIZE(otp_ecc_prog_regions); r++) {
+			u32 addr;
+
+			if (!bufs[r])
+				continue;
+
+			otp_ecc_set_enable(otp_ecc_prog_regions[r].ecc ? 1 : 0);
+
+			for (addr = otp_ecc_prog_regions[r].start;
+			     addr < otp_ecc_prog_regions[r].end; addr++) {
+				u16 val = bufs[r][addr - otp_ecc_prog_regions[r].start];
+
+				if (!val)
+					continue;
+
+				if (otp_prog(addr, val)) {
+					printf("OTP reprog_ecc: prog failed at 0x%x\n", addr);
+					ret = CMD_RET_FAILURE;
+					goto cleanup;
+				}
+			}
+		}
+	}
+
+	/* Phase 3: verify - ECC-read each programmed region back and compare its hash */
+	for (r = 0; r < ARRAY_SIZE(otp_ecc_prog_regions); r++) {
+		u32 size, addr;
+
+		if (!bufs[r])
+			continue;
+
+		size = otp_ecc_prog_regions[r].end - otp_ecc_prog_regions[r].start;
+
+		otp_ecc_set_enable(otp_ecc_prog_regions[r].ecc ? 1 : 0);
+
+		for (addr = otp_ecc_prog_regions[r].start;
+		     addr < otp_ecc_prog_regions[r].end; addr++) {
+			u32 idx = addr - otp_ecc_prog_regions[r].start;
+
+			if (otp_read(addr, &bufs[r][idx])) {
+				printf("OTP reprog_ecc: verify read failed at 0x%x\n", addr);
+				ret = CMD_RET_FAILURE;
+				goto cleanup;
+			}
+		}
+
+		do_hash(bufs[r], size * sizeof(u16), "sha384", post_hash);
+
+		if (memcmp(pre_hash[r], post_hash, SHA384_SUM_LEN) != 0) {
+			printf("OTP reprog_ecc: %-8s post-hash: ", otp_ecc_prog_regions[r].name);
+			otp_print_hash_line(post_hash, SHA384_SUM_LEN);
+			otp_err("OTP reprog_ecc: %s hash mismatch after programming - data may be corrupted",
+				otp_ecc_prog_regions[r].name);
+			ret = CMD_RET_FAILURE;
+		} else {
+			printf("OTP reprog_ecc: %-8s verified OK (hash unchanged)\n",
+			       otp_ecc_prog_regions[r].name);
+		}
+	}
+
+	if (ret == CMD_RET_SUCCESS)
+		printf("OTP reprog_ecc: done. Run 'otp <dev> ecc hw-enable' to permanently enable global ECC.\n");
+
+cleanup:
+	otp_ecc_set_enable(0);
+	for (r = 0; r < ARRAY_SIZE(otp_ecc_prog_regions); r++)
+		free(bufs[r]);
+	free(bufs);
+
+	return ret;
+}
+
 static struct cmd_tbl cmd_otp[] = {
 	U_BOOT_CMD_MKENT(version, 1, 0, do_otpver, "", ""),
 	U_BOOT_CMD_MKENT(read, 4, 0, do_otpread, "", ""),
@@ -3827,6 +4116,7 @@ static struct cmd_tbl cmd_otp[] = {
 	U_BOOT_CMD_MKENT(ecc, 5, 0, do_otpecc, "", ""),
 	U_BOOT_CMD_MKENT(info, 3, 0, do_otpinfo, "", ""),
 	U_BOOT_CMD_MKENT(test, 2, 0, do_otptest, "", ""),
+	U_BOOT_CMD_MKENT(reprog_ecc, 4, 0, do_otpreprog_ecc, "", ""),
 };
 
 static int do_driver_init(int argc, char *const argv[])
@@ -3986,4 +4276,8 @@ U_BOOT_CMD(otp, 9, 0,  do_ast_otp,
 	   "otp <dev> ecc policy dump\n"
 	   "otp <dev> ecc policy set rom|conf|strap-ext|u-data|s-data|cptra|puf enable|disable\n"
 	   "otp <dev> test prov\n"
+	   "otp <dev> reprog_ecc [o] [--ref <addr>] (native backend only; re-programs ECC-capable\n"
+	   "    regions' data with parity, does not touch the global-ECC fuse - follow with\n"
+	   "    'otp <dev> ecc hw-enable' to permanently latch global ECC on)\n"
+	   "otp <dev> reprog_ecc: \"o\" skips the \"type YES\" confirm\n"
 	  );
