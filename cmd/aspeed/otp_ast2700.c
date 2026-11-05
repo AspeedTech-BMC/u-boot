@@ -51,7 +51,7 @@ enum otp_status {
 	OTP_PROG_SKIP,
 };
 
-#define OTP_VER				"1.1.0"
+#define OTP_VER				"2.0.0"
 
 #define ANSI_COLOR_RED			"\e[31m"
 #define ANSI_COLOR_BRIGHT_RED		"\e[91m"
