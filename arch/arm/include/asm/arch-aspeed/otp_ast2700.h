@@ -11,6 +11,7 @@ enum otp_ioctl_cmds {
 	SET_ECC_DISABLE,
 	GET_ECC_POLICY,
 	SET_ECC_POLICY,
+	GET_OTP_ECC_CODE,	/* read word raw (non-ECC) and return data + OTP_DBG01[5:0] */
 };
 
 enum otp_ecc_codes {
@@ -52,6 +53,13 @@ struct otp_ecc_policy {
 	u32 region;		/* enum otp_region_id, set by caller */
 	u32 ecc_en;		/* 0: disabled, 1: enabled */
 	u32 ecc_supported;	/* GET: filled by driver, SET: ignored */
+};
+
+/* Used with GET_OTP_ECC_CODE */
+struct otp_read_ecc {
+	u32 offset;		/* input:  OTP word address */
+	u32 data;		/* output: 16-bit read data */
+	u32 ecc_code;		/* output: OTP_DBG01[5:0] after read */
 };
 
 #endif /* _OTP_AST2700_H */

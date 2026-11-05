@@ -563,11 +563,36 @@ static int aspeed_otp_ecc_dis(struct udevice *dev)
 	return 0;
 }
 
+/*
+ * Reads a word raw (ECC off), regardless of this offset's region ECC
+ * policy, and reports OTP_DBG01[5:0] alongside the data - used by
+ * "otp reprog_ecc" to tell whether a region was already programmed with
+ * ECC parity.
+ */
+static int aspeed_otp_read_ecc_code(struct udevice *dev, struct otp_read_ecc *req)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+	int ret;
+
+	otp_set_dap_vrr_default(dev);
+	writel(req->offset, otp->base + OTP_ADDR);
+	otp_ecc_cfg(dev, false, true);
+	writel(OTP_CMD_READ, otp->base + OTP_CMD);
+	ret = wait_complete(dev);
+	if (!ret) {
+		req->data = (u16)readl(otp->base + OTP_RDATA);
+		req->ecc_code = readl(otp->base + OTP_DBG01) & GENMASK(5, 0);
+	}
+
+	return ret;
+}
+
 static int aspeed_otp_ioctl(struct udevice *dev, unsigned long request,
 			    void *buf)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
 	struct otp_ecc_policy *policy;
+	struct otp_read_ecc *ecc_req;
 	int *data = (int *)buf;
 	int ret = 0;
 
@@ -602,6 +627,13 @@ static int aspeed_otp_ioctl(struct udevice *dev, unsigned long request,
 			return -EINVAL;
 
 		otp->region_ecc_tbl[policy->region].ecc_en = !!policy->ecc_en;
+		break;
+	case GET_OTP_ECC_CODE:
+		ecc_req = (struct otp_read_ecc *)buf;
+		if (ecc_req->offset >= HW_PUF_REGION_END_ADDR)
+			return -EINVAL;
+
+		ret = aspeed_otp_read_ecc_code(dev, ecc_req);
 		break;
 	default:
 		break;
