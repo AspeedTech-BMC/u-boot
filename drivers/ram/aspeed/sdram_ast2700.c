@@ -194,7 +194,7 @@ static void sdramc_configure_register(struct sdramc *sdramc, struct sdramc_ac_ti
 {
 	struct sdramc_regs *regs = sdramc->regs;
 
-	u32 dram_size = 5;
+	u32 dram_size = 4;
 	u32 t_phy_wrdata;
 	u32 t_phy_wrlat;
 	u32 t_phy_rddata_en;
@@ -827,7 +827,12 @@ static int sdramc_size_detect(struct sdramc *sdramc)
 	}
 
 	sz--;
+
+	/* PST BMC has 4GB DRAM. Detection can report 8GB, so force it. */
+	sz = SDRAM_SIZE_4GB;
+
 	sdramc->sz = sz;
+	printf("DRAM size detect: sz=%d\n", sz);
 
 	/* re-configure ram size to dramc. */
 	val = readl(&regs->mcfg);
@@ -1079,8 +1084,10 @@ static int sdram_init(struct udevice *dev)
 	u32 bistcfg;
 	int err = 0;
 
-	if (is_ddr_initialized(sdramc))
+	if (is_ddr_initialized(sdramc)) {
+		printf("DRAM already initialized, mcfg=0x%x\n", readl(&sdramc->regs->mcfg));
 		return 0;
+	}
 
 	sdramc_unlock(sdramc);
 
@@ -1160,6 +1167,11 @@ static int ast2700_sdrammc_calc_size(struct sdramc *sdramc)
 
 	/* size already get in the spl */
 	sz = (readl(&regs->mcfg) >> 2) & 0x7;
+	/* PST BMC has 4GB DRAM; the boot MCU can leave the 8GB default */
+	if (sz >= SDRAM_SIZE_8GB) {
+		sz = SDRAM_SIZE_4GB;
+		printf("DRAM: mcfg reports 8GB, using 4GB\n");
+	}
 	sdramc->info.base = CFG_SYS_SDRAM_BASE;
 	sdramc->info.size = ram_size[sz].size - ast2700_sdrammc_get_vga_mem_size(sdramc);
 	return 0;

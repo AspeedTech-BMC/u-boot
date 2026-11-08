@@ -1284,6 +1284,7 @@ dtb-$(CONFIG_ASPEED_AST2600) += \
 	ast2600-ncsi.dtb
 
 dtb-$(CONFIG_ASPEED_AST2700) += \
+	ast2700-ibm-pstbmc.dtb \
 	ast2700-evb.dtb \
 	ast2700-raw.dtb \
 	ast2700-slt.dtb \
