@@ -4365,8 +4365,15 @@ static int do_otpreprog_ecc(struct cmd_tbl *cmdtp, int flag,
 	/* Ensure raw reads: disable ECC for this session */
 	otp_ecc_set_enable(0);
 
-	/* Phase 1: read each region raw (and compare against golden) */
+	/*
+	 * Phase 1: read each region raw (and compare against golden).
+	 * cptra holds per-chip-unique key material, so there is no such
+	 * thing as a golden binary valid across chips for it - skip the
+	 * comparison for cptra and just use its own raw read, same as when
+	 * no golden binary is given at all.
+	 */
 	for (r = 0; r < ARRAY_SIZE(otp_ecc_prog_regions); r++) {
+		bool use_golden = golden && otp_ecc_prog_regions[r].region_id != OTP_REGION_ID_CAL;
 		u32 size, addr;
 
 		if (region_has_ecc[r])
@@ -4392,7 +4399,7 @@ static int do_otpreprog_ecc(struct cmd_tbl *cmdtp, int flag,
 				goto cleanup;
 			}
 
-			if (golden) {
+			if (use_golden) {
 				u16 gval = golden[addr];
 
 				if (raw == gval) {
