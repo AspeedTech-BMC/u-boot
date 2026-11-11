@@ -576,6 +576,46 @@ static int aspeed_otp_ecc_dis(struct udevice *dev)
  * "otp reprog_ecc" to tell whether a region was already programmed with
  * ECC parity.
  */
+/* Used with GET_REGION_PROTECT: snapshot every OTPMISCREG lock/wen/ren register in one ioctl. */
+static void aspeed_otp_get_region_protect(struct udevice *dev, struct otp_region_protect *prot)
+{
+	struct aspeed_otp *otp = dev_get_priv(dev);
+
+	prot->rom_patch = readl(otp->base + OTP_REGION_ROM_PATCH);
+	prot->otpcfg = readl(otp->base + OTP_REGION_OTPCFG);
+	prot->otpstrap = readl(otp->base + OTP_REGION_OTPSTRAP);
+	prot->strap_ext = readl(otp->base + OTP_REGION_OTPSTRAP_EXT);
+	prot->secure0 = readl(otp->base + OTP_REGION_SECURE0);
+	prot->secure0_range = readl(otp->base + OTP_REGION_SECURE0_RANGE);
+	prot->secure1 = readl(otp->base + OTP_REGION_SECURE1);
+	prot->secure1_range = readl(otp->base + OTP_REGION_SECURE1_RANGE);
+	prot->secure2 = readl(otp->base + OTP_REGION_SECURE2);
+	prot->secure2_range = readl(otp->base + OTP_REGION_SECURE2_RANGE);
+	prot->secure3 = readl(otp->base + OTP_REGION_SECURE3);
+	prot->secure3_range = readl(otp->base + OTP_REGION_SECURE3_RANGE);
+	prot->usr0 = readl(otp->base + OTP_REGION_USR0);
+	prot->usr0_range = readl(otp->base + OTP_REGION_USR0_RANGE);
+	prot->usr1 = readl(otp->base + OTP_REGION_USR1);
+	prot->usr1_range = readl(otp->base + OTP_REGION_USR1_RANGE);
+	prot->usr2 = readl(otp->base + OTP_REGION_USR2);
+	prot->usr2_range = readl(otp->base + OTP_REGION_USR2_RANGE);
+	prot->usr3 = readl(otp->base + OTP_REGION_USR3);
+	prot->usr3_range = readl(otp->base + OTP_REGION_USR3_RANGE);
+	prot->caliptra0 = readl(otp->base + OTP_REGION_CALIPTRA_0);
+	prot->caliptra0_range = readl(otp->base + OTP_REGION_CALIPTRA_0_RANGE);
+	prot->caliptra1 = readl(otp->base + OTP_REGION_CALIPTRA_1);
+	prot->caliptra1_range = readl(otp->base + OTP_REGION_CALIPTRA_1_RANGE);
+	prot->caliptra2 = readl(otp->base + OTP_REGION_CALIPTRA_2);
+	prot->caliptra2_range = readl(otp->base + OTP_REGION_CALIPTRA_2_RANGE);
+	prot->caliptra3 = readl(otp->base + OTP_REGION_CALIPTRA_3);
+	prot->caliptra3_range = readl(otp->base + OTP_REGION_CALIPTRA_3_RANGE);
+	prot->rbp_soc_svn = readl(otp->base + OTP_RBP_SOC_SVN);
+	prot->rbp_soc_keyretire = readl(otp->base + OTP_RBP_SOC_KEYRETIRE);
+	prot->rbp_calip_svn = readl(otp->base + OTP_RBP_CALIP_SVN);
+	prot->rbp_calip_keyretire = readl(otp->base + OTP_RBP_CALIP_KEYRETIRE);
+	prot->puf = readl(otp->base + OTP_PUF);
+}
+
 static int aspeed_otp_read_ecc_code(struct udevice *dev, struct otp_read_ecc *req)
 {
 	struct aspeed_otp *otp = dev_get_priv(dev);
@@ -641,6 +681,9 @@ static int aspeed_otp_ioctl(struct udevice *dev, unsigned long request,
 			return -EINVAL;
 
 		ret = aspeed_otp_read_ecc_code(dev, ecc_req);
+		break;
+	case GET_REGION_PROTECT:
+		aspeed_otp_get_region_protect(dev, (struct otp_region_protect *)buf);
 		break;
 	default:
 		break;

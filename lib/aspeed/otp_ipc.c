@@ -192,3 +192,18 @@ int otp_ipc_read_ecc_code(u32 addr, u32 *data, u32 *ecc_code)
 
 	return status;
 }
+
+/* count is the caller's own otp_region_protect_group field count (1 or 4), not wire-enforced. */
+int otp_ipc_get_region_protect(u32 group, u32 *out, u32 count)
+{
+	u32 req[8] = {0, OTP_IPC_PACK_OP_COUNT(OTP_IPC_OP_GET_REGION_PROTECT, group),
+		      0, 0, 0, 0, 0, 0};
+	u32 resp[8] = {0};
+	int status;
+
+	status = otp_ipc_call(MBOX_OTP_DEVICE_NAME, req, resp);
+	if (status == 0)
+		memcpy(out, &resp[1], count * sizeof(u32));
+
+	return status;
+}

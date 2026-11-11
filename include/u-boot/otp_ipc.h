@@ -44,6 +44,13 @@
  *                  code) captured by the same read. ECC decode is forced
  *                  off for this read regardless of addr's region's own ECC
  *                  policy.
+ * GET_REGION_PROTECT: word1's lower 16 bits = group (enum
+ *                  otp_region_protect_group). struct otp_region_protect
+ *                  has 33 u32 fields - too many for one 8-word message -
+ *                  so this fetches at most 4 raw OTPMISCREG values per
+ *                  call, response word1..word4, in the field order given
+ *                  in each group's comment below. The caller picks which
+ *                  group(s) it needs.
  */
 
 #define MBOX_OTP_DEVICE_NAME		"mbox-bootmcu-2"
@@ -63,6 +70,26 @@ enum otp_ipc_op {
 	 */
 	OTP_IPC_OP_GET_ROM_PATCH_VERSION = 8,
 	OTP_IPC_OP_READ_ECC_CODE,
+	OTP_IPC_OP_GET_REGION_PROTECT,
+};
+
+/*
+ * Groups for OTP_IPC_OP_GET_REGION_PROTECT, each at most 4 raw OTPMISCREG
+ * values (one 8-word message can't carry all 33 of struct
+ * otp_region_protect's fields at once - see GET_REGION_PROTECT above).
+ * Field order within each group matches struct otp_region_protect's
+ * declaration order.
+ */
+enum otp_region_protect_group {
+	OTP_PROT_GROUP_FIXED = 0,	/* rom_patch, otpcfg, otpstrap, strap_ext */
+	OTP_PROT_GROUP_RBP,		/* rbp_soc_svn, rbp_soc_keyretire, rbp_calip_svn, rbp_calip_keyretire */
+	OTP_PROT_GROUP_SECURE_VAL,	/* secure0, secure1, secure2, secure3 */
+	OTP_PROT_GROUP_SECURE_RANGE,	/* secure0_range, secure1_range, secure2_range, secure3_range */
+	OTP_PROT_GROUP_USR_VAL,		/* usr0, usr1, usr2, usr3 */
+	OTP_PROT_GROUP_USR_RANGE,	/* usr0_range, usr1_range, usr2_range, usr3_range */
+	OTP_PROT_GROUP_CALIPTRA_VAL,	/* caliptra0, caliptra1, caliptra2, caliptra3 */
+	OTP_PROT_GROUP_CALIPTRA_RANGE,	/* caliptra0_range, caliptra1_range, caliptra2_range, caliptra3_range */
+	OTP_PROT_GROUP_PUF,		/* puf (word1 only) */
 };
 
 #define OTP_IPC_SEQ_SHIFT		24
@@ -92,5 +119,6 @@ int otp_ipc_ecc_get_policy(u32 region, u32 *ecc_en, u32 *ecc_supported);
 int otp_ipc_ecc_set_policy(u32 region, u32 ecc_en);
 int otp_ipc_get_rom_patch_version(u32 *version);
 int otp_ipc_read_ecc_code(u32 addr, u32 *data, u32 *ecc_code);
+int otp_ipc_get_region_protect(u32 group, u32 *out, u32 count);
 
 #endif /* _OTP_IPC_H */

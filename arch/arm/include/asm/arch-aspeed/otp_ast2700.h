@@ -12,6 +12,7 @@ enum otp_ioctl_cmds {
 	GET_ECC_POLICY,
 	SET_ECC_POLICY,
 	GET_OTP_ECC_CODE,	/* read word raw (non-ECC) and return data + OTP_DBG01[5:0] */
+	GET_REGION_PROTECT,	/* read every OTPMISCREG region lock/wen/ren register at once */
 };
 
 enum otp_ecc_codes {
@@ -60,6 +61,54 @@ struct otp_read_ecc {
 	u32 offset;		/* input:  OTP word address */
 	u32 data;		/* output: 16-bit read data */
 	u32 ecc_code;		/* output: OTP_DBG01[5:0] after read */
+};
+
+/*
+ * Used with GET_REGION_PROTECT: no input fields, all output. Each non-range
+ * field is a raw OTPMISCREG value - bit31=LOCK, bits15:8=WEN, bits7:0=REN -
+ * except .puf, which has its own 4-bit lock-only layout (bit8=sw_puf_rlock,
+ * bit4=hw_puf_rlock, bit1=hw_puf_wlock, bit0=sw_puf_wlock). Caller only
+ * ever deals in these named fields, never the underlying register
+ * offsets - those are the driver's own business.
+ *
+ * secure/usr/caliptra additionally have a *_range field (only those three
+ * groups have a configurable address window): bits31:16=size,
+ * bits15:0=start offset, both in OTP words.
+ */
+struct otp_region_protect {
+	u32 rom_patch;
+	u32 otpcfg;
+	u32 otpstrap;
+	u32 strap_ext;
+	u32 secure0;
+	u32 secure0_range;
+	u32 secure1;
+	u32 secure1_range;
+	u32 secure2;
+	u32 secure2_range;
+	u32 secure3;
+	u32 secure3_range;
+	u32 usr0;
+	u32 usr0_range;
+	u32 usr1;
+	u32 usr1_range;
+	u32 usr2;
+	u32 usr2_range;
+	u32 usr3;
+	u32 usr3_range;
+	u32 caliptra0;
+	u32 caliptra0_range;
+	u32 caliptra1;
+	u32 caliptra1_range;
+	u32 caliptra2;
+	u32 caliptra2_range;
+	u32 caliptra3;
+	u32 caliptra3_range;
+	u32 rbp_soc_svn;
+	u32 rbp_soc_keyretire;
+	u32 rbp_calip_svn;
+	u32 rbp_calip_keyretire;
+	u32 puf;
 };
 
 #endif /* _OTP_AST2700_H */
